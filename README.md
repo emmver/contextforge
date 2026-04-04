@@ -57,6 +57,26 @@ cf transfer <id1> <id2> --to altimate-code --strategy key_messages --execute
 | Codex | `~/.codex/state_5.sqlite` | `resume` / `fork` |
 | altimate-code | `~/.local/share/altimate-code/opencode.db` | `run -s` / `import` |
 
+## Session Summaries
+
+ContextForge generates plain-English summaries of what each session accomplished.
+
+```bash
+cf summarize <id>        # generate or refresh summary for one session
+cf summarize --all       # bulk-generate summaries for all sessions
+cf summarize --all --force  # regenerate even existing ones
+
+# Scan + summarize in one step
+cf scan --summarize
+```
+
+**How summaries work:**
+1. **Codex** — reuses pre-computed `stage1_outputs.rollout_summary` when available (zero LLM cost)
+2. **All tools** — calls the Claude API (Haiku model) to produce a 3–5 sentence summary
+3. **No API key** — falls back to showing the first user message as a preview
+
+Summaries are cached in the local SQLite index and shown in `cf ls` and `cf show`.
+
 ## Configuration
 
 Config file: `~/.contextforge/config.toml`

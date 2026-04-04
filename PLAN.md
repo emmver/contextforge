@@ -1,7 +1,7 @@
 # ContextForge — Development Plan
 
 Last updated: 2026-04-04
-Status: Phase 1 Complete / Phase 2 Ready
+Status: Phase 2 Complete / Phase 3 Ready
 
 ## How to use this file
 
@@ -28,18 +28,19 @@ Agents and contributors: update this file as you work.
 - [x] Token utilities (`utils/tokens.py`)
 - [x] Display helpers (`utils/display.py`)
 - [x] CLI: `cf scan`, `cf ls`, `cf show`, `cf tag`, `cf config` (`cli.py`)
-- [x] Tests: Claude Code adapter, db, compactor (13 passing)
+- [x] Tests: Claude Code adapter, db, compactor (13 passing → 22 with Phase 2)
 - [x] README.md, AGENTS.md, PLAN.md
 
 ---
 
-## Phase 2: Summarizer [ ]
+## Phase 2: Summarizer [COMPLETE]
 
-- [ ] Wire summarizer into `cf scan` (auto-summarize new sessions if API key set)
-- [ ] `cf summarize <id>` and `cf summarize --all` commands (already scaffolded in cli.py)
-- [ ] Summarizer tests with mocked Anthropic client (`tests/core/test_summarizer.py`)
-- [ ] Codex pre-existing `stage1_outputs.rollout_summary` shortcut (zero LLM cost)
-- [ ] Update README.md with summarizer section
+- [x] Wire summarizer into `cf scan` via `--summarize` flag (auto-summarizes new sessions)
+- [x] `cf summarize <id>` and `cf summarize --all` commands with rich progress bar
+- [x] Summarizer tests with mocked Anthropic client (`tests/core/test_summarizer.py` — 9 tests)
+- [x] Codex pre-existing `stage1_outputs.rollout_summary` shortcut (zero LLM cost)
+- [x] `batch_summarize()` helper with `on_progress` callback
+- [x] Update README.md with summarizer section
 
 ---
 

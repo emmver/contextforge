@@ -14,7 +14,7 @@ from contextforge.core import db as db_module
 from contextforge.core.compactor import compact
 from contextforge.core.injector import build_inject_command, execute_transfer
 from contextforge.core.scanner import scan
-from contextforge.core.summarizer import summarize_session
+from contextforge.core.summarizer import batch_summarize, summarize_session
 from contextforge.models.config import ForgeConfig
 from contextforge.utils.display import console, err_console, sessions_table
 
@@ -44,8 +44,14 @@ def _get_db(cfg: ForgeConfig):
 @app.command(name="scan")
 def scan_cmd(
     quiet: Annotated[bool, typer.Option("--quiet", "-q")] = False,
+    summarize: Annotated[bool, typer.Option("--summarize", "-s")] = False,
 ):
-    """Discover and index sessions from all installed agentic tools."""
+    """Discover and index sessions from all installed agentic tools.
+
+    Use --summarize to also generate summaries for new sessions after scanning.
+    Requires ANTHROPIC_API_KEY (or api_key in config) for LLM summaries;
+    falls back to first-message preview if no key is set.
+    """
     cfg = _get_config()
     database = _get_db(cfg)
     result = scan(database, quiet=quiet)
@@ -57,6 +63,38 @@ def scan_cmd(
         )
         for err in result.errors:
             err_console.print(f"[yellow]Warning:[/yellow] {err}")
+
+    if summarize and result.sessions:
+        new_ids = [s.id for s in result.sessions]
+        if not quiet:
+            console.print(f"[dim]Summarizing {len(new_ids)} sessions...[/dim]")
+
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            disable=quiet,
+        ) as progress:
+            task = progress.add_task("Summarizing...", total=len(new_ids))
+
+            def on_prog(sid: str, summary: str | None) -> None:
+                status = "[green]ok[/green]" if summary else "[dim]skipped[/dim]"
+                progress.advance(task)
+                progress.update(task, description=f"Summarized {sid[:12]} {status}")
+
+            summary_result = batch_summarize(
+                db=database,
+                config=cfg,
+                session_ids=new_ids,
+                on_progress=on_prog,
+            )
+
+        if not quiet:
+            console.print(
+                f"[green]Summaries:[/green] "
+                f"{summary_result.summarized} generated, {summary_result.skipped} skipped"
+            )
+
     sys.exit(0 if not result.errors or result.total > 0 else 1)
 
 
@@ -138,14 +176,36 @@ def summarize(
     database = _get_db(cfg)
 
     if all_sessions:
-        rows = db_module.get_sessions(database, limit=1000)
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+
+        rows = db_module.get_sessions(database, limit=10_000)
         pending = [r for r in rows if not r.get("summary") or force]
         console.print(f"Summarizing {len(pending)} sessions...")
-        for i, row in enumerate(pending, 1):
-            sid = row["id"]
-            summary = summarize_session(database, sid, cfg, force=force)
-            status = "[green]ok[/green]" if summary else "[yellow]skipped[/yellow]"
-            console.print(f"  [{i}/{len(pending)}] {sid[:16]} {status}")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+        ) as progress:
+            task = progress.add_task("Summarizing...", total=len(pending))
+
+            def on_prog(sid: str, summary: str | None) -> None:
+                status = "[green]ok[/green]" if summary else "[dim]skipped[/dim]"
+                progress.advance(task)
+                progress.update(task, description=f"{sid[:16]} {status}")
+
+            result = batch_summarize(
+                db=database,
+                config=cfg,
+                session_ids=[r["id"] for r in pending],
+                force=force,
+                on_progress=on_prog,
+            )
+
+        console.print(
+            f"[green]Done:[/green] {result.summarized} generated, "
+            f"{result.skipped} skipped"
+            + (f", {len(result.errors)} errors" if result.errors else "")
+        )
         return
 
     if session_id is None:

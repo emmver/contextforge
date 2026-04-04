@@ -35,6 +35,10 @@ class ToolAdapter(ABC):
         """
         ...
 
+    def get_rollup_summary(self, session_id: str) -> str | None:
+        """Return a pre-computed summary if the tool stores one natively, else None."""
+        return None
+
     def is_available(self) -> bool:
         """Return True if this tool is installed and its data paths exist."""
         return any(p.exists() for p in self.default_paths)

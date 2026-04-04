@@ -99,6 +99,34 @@ class CodexAdapter(ToolAdapter):
                 )
         return sessions
 
+    def get_rollup_summary(self, session_id: str) -> str | None:
+        """Return Codex's pre-computed rollup summary if available (zero LLM cost)."""
+        if not _CODEX_DB.exists():
+            return None
+        try:
+            conn = sqlite3.connect(str(_CODEX_DB))
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            # Check if stage1_outputs table exists
+            cur.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='stage1_outputs'"
+            )
+            if not cur.fetchone():
+                conn.close()
+                return None
+            cur.execute(
+                "SELECT rollout_summary FROM stage1_outputs WHERE thread_id = ? "
+                "ORDER BY id DESC LIMIT 1",
+                (session_id,),
+            )
+            row = cur.fetchone()
+            conn.close()
+            if row and row["rollout_summary"]:
+                return str(row["rollout_summary"]).strip() or None
+        except sqlite3.Error:
+            pass
+        return None
+
     def load_messages(self, session_id: str) -> list[Message]:
         # Try to get rollout path from SQLite
         rollout_path: Path | None = None
