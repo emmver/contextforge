@@ -349,6 +349,120 @@ def transfer(
 
 
 # ---------------------------------------------------------------------------
+# cf tokens
+# ---------------------------------------------------------------------------
+
+@app.command()
+def tokens(
+    session_id: str,
+    top: Annotated[int, typer.Option("--top", "-n", help="Show only the N heaviest turns")] = 0,
+    fmt: Annotated[str, typer.Option("--format", "-f")] = "rich",
+):
+    """Show per-turn token breakdown for a session.
+
+    Counts tokens in every message, shows role totals, averages, and
+    a bar chart of consumption per turn.
+    """
+    from contextforge.core.token_analyzer import analyze_tokens
+    from rich.table import Table
+    from rich.text import Text
+
+    cfg = _get_config()
+    database = _get_db(cfg)
+
+    report = analyze_tokens(database, session_id)
+    if report is None:
+        err_console.print(f"[red]Session not found:[/red] {session_id}")
+        raise typer.Exit(1)
+
+    if not report.turns:
+        err_console.print("[yellow]No messages found for this session.[/yellow]")
+        raise typer.Exit(0)
+
+    if fmt == "json":
+        out = {
+            "session_id": report.session_id,
+            "tool": report.tool,
+            "title": report.title,
+            "total_tokens": report.total,
+            "user_tokens": report.user_total,
+            "assistant_tokens": report.assistant_total,
+            "turn_count": report.turn_count,
+            "avg_user_tokens": round(report.avg_user, 1),
+            "avg_assistant_tokens": round(report.avg_assistant, 1),
+            "turns": [
+                {
+                    "turn": t.turn,
+                    "role": t.role,
+                    "tokens": t.tokens,
+                    "cumulative": t.cumulative,
+                    "preview": t.content_preview,
+                }
+                for t in report.turns
+            ],
+        }
+        console.print_json(json.dumps(out))
+        return
+
+    # ── Summary panel ──────────────────────────────────────────────────────
+    max_t = report.max_turn
+    console.print(Panel(
+        f"[bold]{report.title}[/bold]  [{report.tool}]\n\n"
+        f"Total tokens:   [bold]{report.total:,}[/bold]\n"
+        f"Turns:          {report.turn_count}  "
+        f"([cyan]user {report.turn_count // 2 or len([t for t in report.turns if t.role == 'user'])}[/cyan] / "
+        f"[green]asst {len([t for t in report.turns if t.role == 'assistant'])}[/green])\n"
+        f"User total:     [cyan]{report.user_total:,}[/cyan]  "
+        f"(avg {report.avg_user:,.0f}/turn)\n"
+        f"Assistant total:[green]{report.assistant_total:,}[/green]  "
+        f"(avg {report.avg_assistant:,.0f}/turn)\n"
+        + (f"Heaviest turn:  #{max_t.turn} [{max_t.role}] — "
+           f"[bold]{max_t.tokens:,}[/bold] tokens" if max_t else ""),
+        title=f"Token Analysis · {session_id[:16]}",
+    ))
+
+    # ── Per-turn table ──────────────────────────────────────────────────────
+    BAR_MAX = 30
+    turns_to_show = report.turns
+    if top:
+        turns_to_show = sorted(report.turns, key=lambda t: t.tokens, reverse=True)[:top]
+        turns_to_show = sorted(turns_to_show, key=lambda t: t.turn)
+
+    max_tokens = max((t.tokens for t in report.turns), default=1)
+
+    table = Table(show_header=True, header_style="bold", show_lines=False, expand=True)
+    table.add_column("#", justify="right", width=4, no_wrap=True)
+    table.add_column("Role", width=8, no_wrap=True)
+    table.add_column("Tokens", justify="right", width=8, no_wrap=True)
+    table.add_column("Cumul.", justify="right", width=9, no_wrap=True)
+    table.add_column("Bar", min_width=BAR_MAX, no_wrap=True)
+    table.add_column("Preview", no_wrap=True)
+
+    for t in turns_to_show:
+        bar_len = max(1, int(t.tokens / max_tokens * BAR_MAX))
+        if t.role == "user":
+            color = "cyan"
+        elif t.role == "assistant":
+            color = "green"
+        else:
+            color = "dim"
+
+        bar = Text("█" * bar_len, style=color)
+        table.add_row(
+            str(t.turn),
+            f"[{color}]{t.role}[/{color}]",
+            f"{t.tokens:,}",
+            f"{t.cumulative:,}",
+            bar,
+            Text(t.content_preview, overflow="ellipsis"),
+        )
+
+    console.print(table)
+    if top:
+        console.print(f"[dim]Showing top {top} heaviest turns. Omit --top to see all.[/dim]")
+
+
+# ---------------------------------------------------------------------------
 # cf tag
 # ---------------------------------------------------------------------------
 

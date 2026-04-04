@@ -69,6 +69,16 @@ Agents and contributors: update this file as you work.
 
 ---
 
+## Ad-hoc: Token Analysis [COMPLETE]
+
+- [x] `cf tokens <id>` — per-turn breakdown with bar chart, role totals, averages, heaviest turn
+- [x] `cf tokens <id> --top N` — show only the N heaviest turns
+- [x] `cf tokens <id> --format json` — machine-readable output
+- [x] `core/token_analyzer.py` — `SessionTokenReport` dataclass + `analyze_tokens()`
+- [x] 7 tests in `tests/core/test_token_analyzer.py`
+
+---
+
 ## Phase 5: Polish [ ]
 
 - [ ] `cf config set` persists to `~/.contextforge/config.toml`
