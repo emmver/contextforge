@@ -22,11 +22,11 @@ class ContextForgeApp(App):
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
-        Binding("r", "action_rescan", "Rescan"),
-        Binding("s", "action_summarize", "Summarize"),
-        Binding("t", "action_transfer", "Transfer"),
-        Binding("c", "action_compact", "Compact"),
-        Binding("/", "action_filter", "Filter"),
+        Binding("r", "rescan", "Rescan"),
+        Binding("s", "summarize", "Summarize"),
+        Binding("t", "transfer", "Transfer"),
+        Binding("c", "compact", "Compact"),
+        Binding("/", "filter", "Filter"),
     ]
 
     def __init__(self, db_path: Path | None = None) -> None:
@@ -87,8 +87,7 @@ class ContextForgeApp(App):
         db = get_db(self.db_path)
         summary = summarize_session(db, sid, ForgeConfig())
         if summary:
-            self.query_one(SessionDetail).load.__func__  # force reload
-            self.query_one(SessionDetail)._current_id = None
+            self.query_one(SessionDetail)._current_id = None  # bust cache
             self.query_one(SessionDetail).load(sid)
             self.notify("Summary generated.", title="Summarize")
         else:

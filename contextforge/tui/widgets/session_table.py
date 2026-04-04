@@ -43,7 +43,9 @@ class SessionTable(Widget):
             self.session_id = session_id
             self.tool = tool
 
-    _rows: list[dict] = []
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._rows: list[dict] = []
 
     def compose(self) -> ComposeResult:
         yield DataTable(cursor_type="row", zebra_stripes=True)
@@ -72,7 +74,8 @@ class SessionTable(Widget):
             emoji = TOOL_EMOJI.get(tool, "⚪")
             tool_label = f"{emoji} {TOOL_DISPLAY.get(tool, tool)}"
 
-            title = (row.get("title") or "")[:38] or "(no title)"
+            from contextforge.utils.display import _clean_title
+            title = _clean_title(row.get("title") or "", max_len=38) or "(no title)"
 
             updated_ms = row.get("updated_at") or 0
             try:
