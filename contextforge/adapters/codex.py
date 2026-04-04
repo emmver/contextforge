@@ -11,6 +11,20 @@ from contextforge.adapters.base import ToolAdapter
 from contextforge.models.session import Message, Session
 
 _CODEX_DB = Path.home() / ".codex" / "state_5.sqlite"
+
+# Timestamps above this threshold are milliseconds; below are seconds.
+# 1e11 ms ≈ year 1973, so any value > 1e11 must be ms-since-epoch.
+_MS_THRESHOLD = 100_000_000_000
+
+
+def _ts_to_dt(ts) -> datetime:
+    """Convert a Codex timestamp (seconds or milliseconds) to a UTC datetime."""
+    if ts is None:
+        return datetime.now(timezone.utc)
+    ts = int(ts)
+    if ts > _MS_THRESHOLD:
+        ts = ts // 1000  # milliseconds → seconds
+    return datetime.fromtimestamp(ts, tz=timezone.utc)
 _CODEX_SESSIONS_DIR = Path.home() / ".codex" / "sessions"
 _SESSION_INDEX = Path.home() / ".codex" / "session_index.jsonl"
 
@@ -47,8 +61,8 @@ class CodexAdapter(ToolAdapter):
 
         for row in rows:
             try:
-                created = datetime.fromtimestamp(row["created_at"] / 1000, tz=timezone.utc)
-                updated = datetime.fromtimestamp(row["updated_at"] / 1000, tz=timezone.utc)
+                created = _ts_to_dt(row["created_at"])
+                updated = _ts_to_dt(row["updated_at"])
             except (TypeError, ValueError):
                 now = datetime.now(timezone.utc)
                 created = updated = now
