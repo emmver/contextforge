@@ -278,6 +278,7 @@ def transfer(
     cwd: Annotated[Optional[str], typer.Option("--cwd")] = None,
     method: Annotated[Optional[str], typer.Option("--method")] = None,
     execute: Annotated[bool, typer.Option("--execute")] = False,
+    fmt: Annotated[str, typer.Option("--format", "-f")] = "rich",
 ):
     """Compact context from sessions and inject into a new/existing session.
 
@@ -303,17 +304,37 @@ def transfer(
         method=method,
     )
 
-    console.print(Panel(
-        f"Target tool:  {target_tool}\n"
-        f"Method:       {actual_method}\n"
-        f"Bundle tokens: {bundle.token_count}\n\n"
-        f"[bold]Command:[/bold]\n[cyan]{cmd}[/cyan]",
-        title="Transfer Preview",
-    ))
+    if fmt == "json":
+        output = {
+            "target_tool": target_tool,
+            "method": actual_method,
+            "bundle_tokens": bundle.token_count,
+            "bundle_strategy": bundle.strategy,
+            "source_sessions": bundle.source_sessions,
+            "command": cmd,
+            "dry_run": not execute,
+            "context_file_needed": actual_method == "file",
+        }
+        console.print_json(json.dumps(output))
+    else:
+        file_note = (
+            "\n[dim]Note: CONTEXT.md will be written to the target directory.[/dim]"
+            if actual_method == "file"
+            else ""
+        )
+        console.print(Panel(
+            f"Target tool:   {target_tool}\n"
+            f"Method:        {actual_method}\n"
+            f"Bundle tokens: {bundle.token_count} / {budget}\n"
+            f"Strategy:      {bundle.strategy}\n\n"
+            f"[bold]Command:[/bold]\n[cyan]{cmd}[/cyan]{file_note}",
+            title="Transfer Preview",
+        ))
 
     if execute:
         bundle_id = db_module.save_bundle(database, bundle)
-        console.print("[yellow]Executing...[/yellow]")
+        if fmt != "json":
+            console.print("[yellow]Executing...[/yellow]")
         execute_transfer(
             db=database,
             bundle=bundle,
@@ -323,7 +344,7 @@ def transfer(
             cwd=cwd,
             method=method,
         )
-    else:
+    elif fmt != "json":
         console.print("[dim]Dry run. Pass [bold]--execute[/bold] to launch.[/dim]")
 
 

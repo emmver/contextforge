@@ -31,6 +31,9 @@ cf dashboard         # launch TUI dashboard (Phase 5)
 # Preview: compact a session into a ContextBundle and display it
 cf compact <session-id>
 
+# Save a bundle to the DB for later reuse
+cf compact <session-id> --save
+
 # Preview: show the exact command that would inject context into a new Codex session
 cf transfer <session-id> --to codex
 
@@ -39,7 +42,24 @@ cf transfer <session-id> --to codex --execute
 
 # Multi-session bundle → altimate-code, richer key_messages strategy
 cf transfer <id1> <id2> --to altimate-code --strategy key_messages --execute
+
+# Resume an existing session with injected context
+cf transfer <id> --to claude_code --session <existing-session-id> --execute
+
+# Machine-readable output
+cf transfer <id> --to codex --format json
 ```
+
+### Injection methods
+
+| Method | When used | How |
+|---|---|---|
+| `system_prompt` | New session, small context (≤4k tokens) | Passed via `--system-prompt` flag |
+| `resume` | Continuing an existing session | `--resume` / `resume` / `run -s` |
+| `fork` | Branch from existing session | `fork` / `--fork` |
+| `file` | Any context >4k tokens | Writes `CONTEXT.md` to target dir; system prompt references it |
+
+The method is chosen automatically based on token count and whether a target session is specified. Override with `--method`.
 
 ## Compaction Strategies
 

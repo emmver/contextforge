@@ -1,7 +1,7 @@
 # ContextForge — Development Plan
 
 Last updated: 2026-04-04
-Status: Phase 2 Complete / Phase 3 Ready
+Status: Phase 3 Complete / Phase 4 Ready
 
 ## How to use this file
 
@@ -44,14 +44,14 @@ Agents and contributors: update this file as you work.
 
 ---
 
-## Phase 3: Compaction + Transfer [ ]
+## Phase 3: Compaction + Transfer [COMPLETE]
 
-- [ ] `cf compact` command with `--save` to persist bundle to DB
-- [ ] `cf transfer` cross-tool end-to-end test (Claude Code → Codex)
-- [ ] `cf transfer` cross-tool end-to-end test (Codex → altimate-code)
-- [ ] Large-context file injection (`CONTEXT.md` strategy, >4k tokens)
-- [ ] `--format json` on `cf compact` and `cf transfer`
-- [ ] Tests for injector (`tests/core/test_injector.py`)
+- [x] `cf compact` with `--save` (persists bundle to DB) and `--format json`
+- [x] `cf transfer` cross-tool: Claude Code → Codex, Codex → altimate-code, altimate → Claude Code
+- [x] Multi-session cross-tool bundle transfer tested
+- [x] Large-context file injection (`CONTEXT.md` strategy auto-selected when >4k tokens)
+- [x] `--format json` on both `cf compact` and `cf transfer`
+- [x] 23 injector tests — per-tool commands, file injection, DB recording, cross-tool scenarios (45 total passing)
 
 ---
 
