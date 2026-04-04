@@ -134,6 +134,51 @@ cf compact <id> --format json
 
 See [AGENTS.md](AGENTS.md) for contribution guidelines and [PLAN.md](PLAN.md) for development status.
 
+## TUI Dashboard
+
+```bash
+cf dashboard
+```
+
+A full-screen Textual dashboard with two panels:
+
+```
+┌──────────────────────────┬────────────────────────────────┐
+│ 🔵 Claude Code  utastar  │ ● utastar_thesis               │
+│ 🟢 Codex        dataset  │                                │
+│ 🟣 altimate     BigQuery │ Tool:    claude_code           │
+│ 🔵 Claude Code  jira-mcp │ CWD:     ~/Github/utastar_...  │
+│ ...                      │ Tokens:  1.2M                  │
+│                          │ Updated: 2026-04-03 22:41 UTC  │
+│                          │                                │
+│                          │ ── Summary ──                  │
+│                          │                                │
+│                          │ Worked on UTASTAR ensemble     │
+│                          │ pruning framework. Implemented │
+│                          │ w2 pruning strategy ...        │
+└──────────────────────────┴────────────────────────────────┘
+ Sessions — CC:12 │ Codex:4 │ Alt:3 │ Total:19   Updated 14:32:01
+```
+
+### Key bindings
+
+| Key | Action |
+|---|---|
+| `r` | Rescan all tools |
+| `s` | Summarize selected session |
+| `t` | Open transfer modal (choose tool + strategy) |
+| `c` | Compact selected session and preview bundle |
+| `q` | Quit |
+| `↑↓` / `j k` | Navigate sessions |
+
+### Transfer modal
+
+Press `t` on any session to open the transfer panel. Choose:
+- **Target tool** — Claude Code, Codex, or altimate-code
+- **Strategy** — `summary_only`, `key_messages`, or `full_recent`
+- **Preview** — shows the exact shell command (no side effects)
+- **Execute** — builds the bundle and launches the target tool
+
 ## Development
 
 ```bash

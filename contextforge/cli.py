@@ -397,13 +397,13 @@ def config_set(key: str, value: str):
 
 @app.command()
 def dashboard():
-    """Launch the Textual TUI dashboard."""
-    try:
-        from contextforge.tui.app import ContextForgeApp
-        ContextForgeApp().run()
-    except ImportError:
-        err_console.print(
-            "[red]Textual is required for the dashboard.[/red] "
-            "Install it with: [bold]uv add textual[/bold]"
-        )
-        raise typer.Exit(1)
+    """Launch the Textual TUI dashboard.
+
+    Key bindings:
+      r  — rescan sessions       s  — summarize selected
+      t  — transfer (modal)      c  — compact selected
+      q  — quit                  /  — focus table
+    """
+    cfg = _get_config()
+    from contextforge.tui.app import ContextForgeApp
+    ContextForgeApp(db_path=cfg.db_path).run()

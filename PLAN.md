@@ -1,7 +1,7 @@
 # ContextForge — Development Plan
 
 Last updated: 2026-04-04
-Status: Phase 3 Complete / Phase 4 Ready
+Status: Phase 4 Complete / Phase 5 Ready
 
 ## How to use this file
 
@@ -55,16 +55,17 @@ Agents and contributors: update this file as you work.
 
 ---
 
-## Phase 4: TUI Dashboard [ ]
+## Phase 4: TUI Dashboard [COMPLETE]
 
-- [ ] `textual` moved to runtime deps (currently dev)
-- [ ] `SessionTable` widget — DataTable sorted by `updated_at`, colored by tool
-- [ ] `SessionDetail` widget — reactive right panel with summary + metadata
-- [ ] `TransferPanel` widget — modal/overlay for target tool selection
-- [ ] `StatusBar` widget — last scan time, session counts
-- [ ] `tui/styles.tcss` — per-tool accent colors
-- [ ] `cf dashboard` command fully wired
-- [ ] Update README.md with dashboard screenshot
+- [x] `textual` moved to runtime deps (removed from dev group)
+- [x] `SessionTable` widget — DataTable with tool emoji, title, updated, tokens, ID
+- [x] `SessionDetail` widget — reactive right panel; title, metadata block, summary text
+- [x] `TransferPanel` widget — `ModalScreen` with RadioSet for tool + strategy, Preview/Execute buttons
+- [x] `StatusBar` widget — per-tool session counts + last refresh time (docked bottom)
+- [x] `tui/styles.tcss` — full layout CSS, panel borders, modal styling
+- [x] `cf dashboard` command fully wired; passes DB path from config; keybindings in docstring
+- [x] App actions: r=rescan, s=summarize, t=transfer modal, c=compact, q=quit
+- [x] Update README.md with dashboard section
 
 ---
 

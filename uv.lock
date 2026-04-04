@@ -159,6 +159,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "rich" },
     { name = "sqlite-utils" },
+    { name = "textual" },
     { name = "tiktoken" },
     { name = "typer" },
 ]
@@ -167,7 +168,6 @@ dependencies = [
 dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
-    { name = "textual" },
 ]
 
 [package.metadata]
@@ -176,6 +176,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "rich", specifier = ">=14.3.3" },
     { name = "sqlite-utils", specifier = ">=3.39" },
+    { name = "textual", specifier = ">=8.2.2" },
     { name = "tiktoken", specifier = ">=0.12.0" },
     { name = "typer", specifier = ">=0.24.1" },
 ]
@@ -184,7 +185,6 @@ requires-dist = [
 dev = [
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "textual", specifier = ">=8.2.2" },
 ]
 
 [[package]]

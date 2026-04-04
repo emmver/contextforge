@@ -1,6 +1,121 @@
-#placeholder {
-    margin: 4 8;
-    padding: 2 4;
-    border: round $primary;
+/* ContextForge TUI Styles */
+
+/* ── Layout ─────────────────────────────────────────────── */
+
+Screen {
+    layout: vertical;
+}
+
+#main-horizontal {
+    height: 1fr;
+    layout: horizontal;
+}
+
+/* ── Session table (left panel) ─────────────────────────── */
+
+SessionTable {
+    width: 2fr;
+    height: 1fr;
+    border-right: tall $primary;
+}
+
+SessionTable DataTable {
+    height: 1fr;
+}
+
+/* ── Session detail (right panel) ───────────────────────── */
+
+SessionDetail {
+    width: 3fr;
+    height: 1fr;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+#detail-placeholder {
+    color: $text-disabled;
+    margin: 4 0;
+    text-align: center;
+}
+
+#detail-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+#detail-meta {
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+#detail-summary {
     color: $text;
+}
+
+/* ── Status bar ─────────────────────────────────────────── */
+
+StatusBar {
+    height: 1;
+    background: $primary-background-darken-2;
+    color: $text-muted;
+    padding: 0 1;
+}
+
+/* ── Transfer modal ─────────────────────────────────────── */
+
+TransferPanel {
+    align: center middle;
+}
+
+TransferPanel > Vertical {
+    width: 64;
+    height: auto;
+    max-height: 38;
+    border: thick $primary;
+    background: $surface;
+    padding: 1 2;
+}
+
+#panel-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.section-label {
+    text-style: bold;
+    margin-top: 1;
+    color: $text-muted;
+}
+
+#btn-row {
+    margin-top: 2;
+    height: auto;
+    layout: horizontal;
+    align: right middle;
+}
+
+#btn-row Button {
+    margin-left: 1;
+}
+
+/* ── Filter bar ─────────────────────────────────────────── */
+
+#filter-bar {
+    height: 3;
+    background: $primary-background-darken-1;
+    padding: 0 1;
+    layout: horizontal;
+    align: left middle;
+}
+
+#filter-bar Label {
+    width: auto;
+    margin-right: 1;
+    color: $text-muted;
+}
+
+#filter-bar Input {
+    width: 30;
 }
