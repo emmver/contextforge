@@ -1,0 +1,4 @@
+{"type":"user","timestamp":"2025-04-01T10:00:00Z","message":{"role":"user","content":"Can you help me implement a binary search tree in Python?"}}
+{"type":"assistant","timestamp":"2025-04-01T10:00:05Z","message":{"role":"assistant","content":"Sure! Here's a binary search tree implementation:\n\n```python\nclass BST:\n    def __init__(self):\n        self.root = None\n```"}}
+{"type":"user","timestamp":"2025-04-01T10:01:00Z","message":{"role":"user","content":"Can you add an insert method?"}}
+{"type":"assistant","timestamp":"2025-04-01T10:01:10Z","message":{"role":"assistant","content":"Here's the insert method:\n\n```python\ndef insert(self, value):\n    if self.root is None:\n        self.root = Node(value)\n```"}}

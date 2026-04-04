@@ -1,0 +1,12 @@
+# ContextForge project-level config (used when running cf from this repo)
+# Override user-level config at ~/.contextforge/config.toml
+
+[llm]
+# model = "claude-haiku-4-5-20251001"
+
+[compactor]
+default_strategy = "summary_only"
+default_token_budget = 4096
+
+[scanner]
+max_sessions_per_tool = 200
