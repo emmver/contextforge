@@ -516,7 +516,7 @@ def dashboard():
     Key bindings:
       r  — rescan sessions       s  — summarize selected
       t  — transfer (modal)      c  — compact selected
-      q  — quit                  /  — focus table
+      x  — token analysis        q  — quit
     """
     cfg = _get_config()
     from contextforge.tui.app import ContextForgeApp

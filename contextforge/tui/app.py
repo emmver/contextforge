@@ -11,6 +11,7 @@ from textual.widgets import Footer, Header
 from contextforge.tui.widgets.session_detail import SessionDetail
 from contextforge.tui.widgets.session_table import SessionTable
 from contextforge.tui.widgets.status_bar import StatusBar
+from contextforge.tui.widgets.tokens_panel import TokensPanel
 from contextforge.tui.widgets.transfer_panel import TransferPanel
 
 
@@ -26,6 +27,7 @@ class ContextForgeApp(App):
         Binding("s", "summarize", "Summarize"),
         Binding("t", "transfer", "Transfer"),
         Binding("c", "compact", "Compact"),
+        Binding("x", "tokens", "Tokens"),
         Binding("/", "filter", "Filter"),
     ]
 
@@ -179,6 +181,14 @@ class ContextForgeApp(App):
             title="Compact",
             timeout=10,
         )
+
+    def action_tokens(self) -> None:
+        """Open the token analysis modal for the selected session."""
+        sid = getattr(self, "_current_session_id", None)
+        if sid is None:
+            self.notify("Select a session first.", severity="warning")
+            return
+        self.push_screen(TokensPanel(session_id=sid, db_path=self.db_path))
 
     def action_filter(self) -> None:
         """Focus the table (placeholder for future filter input)."""
