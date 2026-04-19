@@ -25,12 +25,12 @@ or across different tools.
 
 ### Using `uv` (recommended)
 ```bash
-uv tool install context-forge
+uv tool install context-forge-cli
 ```
 
 ### Using `pipx`
 ```bash
-pipx install context-forge
+pipx install context-forge-cli
 ```
 
 ### From source (development)
