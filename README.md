@@ -136,7 +136,8 @@ The method is chosen automatically based on token count and whether a target ses
 
 | Tool | Discovery | Inject method |
 |---|---|---|
-| Claude Code | `~/.claude/projects/` JSONL | `--system-prompt` / `--resume` |
+| Claude Code (CLI) | `~/.claude/projects/` JSONL | `--system-prompt` / `--resume` |
+| Claude Desktop | `~/Library/Application Support/Claude/local-agent-mode-sessions/` | `--system-prompt` |
 | Codex | `~/.codex/state_5.sqlite` | `resume` / `fork` |
 | altimate-code | `~/.local/share/altimate-code/opencode.db` | `run -s` / `import` |
 
@@ -215,38 +216,58 @@ See [AGENTS.md](AGENTS.md) for contribution guidelines and [PLAN.md](PLAN.md) fo
 cf dashboard
 ```
 
-A full-screen Textual dashboard with two panels:
+A full-screen Textual dashboard with live session browsing, filtering, and analytics.
 
 ```
-┌──────────────────────────┬────────────────────────────────┐
-│ 🔵 Claude Code  utastar  │ ● utastar_thesis               │
-│ 🟢 Codex        dataset  │                                │
-│ 🟣 altimate     BigQuery │ Tool:    claude_code           │
-│ 🔵 Claude Code  jira-mcp │ CWD:     ~/Github/utastar_...  │
-│ ...                      │ Tokens:  1.2M                  │
-│                          │ Updated: 2026-04-03 22:41 UTC  │
-│                          │                                │
-│                          │ ── Summary ──                  │
-│                          │                                │
-│                          │ Worked on UTASTAR ensemble     │
-│                          │ pruning framework. Implemented │
-│                          │ w2 pruning strategy ...        │
-└──────────────────────────┴────────────────────────────────┘
- Sessions — CC:12 │ Codex:4 │ Alt:3 │ Total:19   Updated 14:32:01
+┌ Sessions ────────────────┬ Detail ─────────────────────────┐
+│ 🔵 CC    utastar   1.2M  │ utastar_thesis                  │
+│ 🟢 Codex dataset    45k  │                                 │
+│ 🟣 Alt   BigQuery   12k  │ Tool      Claude Code           │
+│ 🔵 CC    jira-mcp  890k  │ CWD       ~/Github/utastar_...  │
+│ ...                      │ Tokens    1.2M                  │
+│                          │ Created   2026-03-10 09:14 UTC  │
+│                          │ Updated   2026-04-03 22:41 UTC  │
+│                          │                                 │
+│                          │ ── Summary ──                   │
+│                          │                                 │
+│                          │ Worked on UTASTAR ensemble      │
+│                          │ pruning framework...            │
+└──────────────────────────┴─────────────────────────────────┘
+ Sessions — CC:12 │ Codex:4 │ Alt:3 │ Total:19 │ 129M tok   14:32:01
 ```
 
 ### Key bindings
 
 | Key | Action |
 |---|---|
+| `a` | Analytics dashboard (tool charts, activity sparkline, top projects) |
+| `x` | Per-turn token breakdown for selected session |
+| `/` | Toggle live filter bar (text search + tool buttons) |
 | `r` | Rescan all tools |
 | `s` | Summarize selected session |
 | `t` | Open transfer modal (choose tool + strategy) |
 | `c` | Compact selected session and preview bundle |
 | `q` | Quit |
-| `↑↓` / `j k` | Navigate sessions |
+| `↑↓` | Navigate sessions |
 
-### Transfer modal
+### Analytics modal (`a`)
+
+Shows aggregate stats with configurable time windows:
+
+- **W** = last 7 days, **M** = 30 days, **H** = 6 months, **Y** = 1 year
+- Sessions and token usage per tool (unicode bar charts)
+- Activity sparkline over time
+- Top 5 projects by session count
+
+### Live filter (`/`)
+
+Press `/` to open the filter bar above the session list:
+- Type to filter by title or project path (instant, no DB re-query)
+- Click **All / CC / Codex / Alt** to filter by tool
+- Combine text + tool filters; match count shown in the status bar
+- Press `ESC` to clear and close
+
+### Transfer modal (`t`)
 
 Press `t` on any session to open the transfer panel. Choose:
 - **Target tool** — Claude Code, Codex, or altimate-code
