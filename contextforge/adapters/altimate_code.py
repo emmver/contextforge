@@ -7,10 +7,22 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+import tiktoken
+
 from contextforge.adapters.base import ToolAdapter
 from contextforge.models.session import Message, Session
 
 _OPENCODE_DB = Path.home() / ".local" / "share" / "altimate-code" / "opencode.db"
+
+
+def _count_tokens(text: str) -> int:
+    """Count tokens in text using tiktoken for Claude models."""
+    try:
+        enc = tiktoken.encoding_for_model("claude-3-5-sonnet-20241022")
+        return len(enc.encode(text))
+    except Exception:
+        # Fallback: rough estimate (~4 chars per token)
+        return len(text) // 4
 
 
 class AltimateCodeAdapter(ToolAdapter):
@@ -46,9 +58,13 @@ class AltimateCodeAdapter(ToolAdapter):
                 now = datetime.now(timezone.utc)
                 created = updated = now
 
+            # Calculate token count from session messages
+            session_id = str(row["id"])
+            token_count = self._count_session_tokens(session_id)
+
             sessions.append(
                 Session(
-                    id=str(row["id"]),
+                    id=session_id,
                     tool=self.tool_name,
                     title=row["title"] or None,
                     cwd=row["directory"] or None,
@@ -56,6 +72,7 @@ class AltimateCodeAdapter(ToolAdapter):
                     updated_at=updated,
                     raw_path=str(_OPENCODE_DB),
                     status="unknown",
+                    token_count=token_count,
                 )
             )
 
@@ -134,6 +151,14 @@ class AltimateCodeAdapter(ToolAdapter):
 
         flush()
         return messages
+
+    def _count_session_tokens(self, session_id: str) -> int:
+        """Count total tokens in a session."""
+        messages = self.load_messages(session_id)
+        total = 0
+        for msg in messages:
+            total += _count_tokens(msg.content)
+        return total
 
     def build_inject_command(
         self,

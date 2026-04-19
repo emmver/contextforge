@@ -7,22 +7,85 @@ agentic CLI tools. It generates plain-English summaries of each session and can 
 and transfer context from one or more sessions into a new session — within the same tool
 or across different tools.
 
+## What it does
+
+- **Discovers sessions** from Claude Code (`~/.claude/projects/`), Codex (`~/.codex/state_5.sqlite`), and altimate-code (`~/.local/share/altimate-code/`)
+- **Generates summaries** of what each session accomplished (with optional Claude API integration)
+- **Compacts context** intelligently, reducing multi-turn conversations to a token-efficient ContextBundle
+- **Transfers context** across tools and sessions (Claude Code → Codex, Codex → altimate-code, etc.)
+- **Provides a TUI dashboard** to browse and manage sessions interactively
+
+## Prerequisites
+
+- **Python 3.13+** (ContextForge requires Python 3.13 or later)
+- **uv** or **pipx** (for installation as a tool)
+- At least one of: Claude Code, Codex, or altimate-code installed and with session history
+
 ## Install
 
+### Using `uv` (recommended)
 ```bash
-uv tool install contextforge
-# or
-pipx install contextforge
+uv tool install context-forge
+```
+
+### Using `pipx`
+```bash
+pipx install context-forge
+```
+
+### From source (development)
+```bash
+git clone https://github.com/emmver/contextforge.git
+cd contextforge
+uv sync
+uv run cf --help
+```
+
+### Verify installation
+```bash
+cf --help      # Should show the CLI with all commands
+cf config      # Show or edit configuration
 ```
 
 ## Quick Start
 
+### 1. Scan for sessions
 ```bash
 cf scan              # discover and index sessions from all installed tools
-cf ls                # list all recent sessions
-cf show <id>         # show detail + summary for a session
-cf summarize --all   # generate summaries for all unsummarized sessions
-cf dashboard         # launch TUI dashboard (Phase 5)
+```
+This reads tool-native storage and builds a local SQLite index at `~/.contextforge/contextforge.db`.
+First run typically takes a few seconds depending on session count.
+
+### 2. List and explore sessions
+```bash
+cf ls                # list all recent sessions (with summaries if available)
+cf ls --format json  # machine-readable output
+cf show <id>         # show full detail + summary for a specific session
+```
+
+### 3. Generate summaries (optional)
+```bash
+cf summarize --all                 # generate summaries for all unsummarized sessions
+cf summarize <id>                  # refresh summary for a single session
+cf summarize --all --force         # regenerate all summaries (e.g., after config change)
+```
+Summaries require an Anthropic API key (see [Configuration](#configuration) below).
+
+### 4. Launch the dashboard
+```bash
+cf dashboard         # interactive TUI with live session browser
+```
+
+### 5. Transfer context to a new session
+```bash
+# Preview the context bundle
+cf compact <session-id>
+
+# Inject context into a new Claude Code session
+cf transfer <session-id> --to claude_code --execute
+
+# Inject into Codex with richer context
+cf transfer <session-id> --to codex --strategy key_messages --execute
 ```
 
 ## Context Transfer
@@ -99,23 +162,35 @@ Summaries are cached in the local SQLite index and shown in `cf ls` and `cf show
 
 ## Configuration
 
-Config file: `~/.contextforge/config.toml`
+Config file: `~/.contextforge/config.toml` (created on first run)
 
-```toml
-[llm]
-api_key = "sk-ant-..."          # optional; enables LLM summarization
-model = "claude-haiku-4-5-20251001"
-
-[compactor]
-default_strategy = "summary_only"
-default_token_budget = 4096
-
-[scanner]
-max_sessions_per_tool = 200
+### Manage config from CLI
+```bash
+cf config show         # display current config
+cf config set llm.api_key sk-ant-...
+cf config set compactor.default_strategy key_messages
 ```
 
-If no API key is configured, ContextForge falls back to showing the first user message
-as a session preview (no LLM call required).
+### Full reference
+```toml
+[llm]
+api_key = "sk-ant-..."                    # optional; enables LLM summarization
+model = "claude-haiku-4-5-20251001"       # or any Claude model
+
+[compactor]
+default_strategy = "summary_only"         # summary_only | key_messages | full_recent
+default_token_budget = 4096               # max tokens per compacted session
+
+[scanner]
+max_sessions_per_tool = 200               # limit sessions indexed per tool
+```
+
+### Notes on configuration
+
+- **Without API key**: Summaries fall back to showing the first user message (no LLM cost)
+- **With API key**: Summaries use Claude Haiku via the Anthropic API (~0.30¢ per summary)
+- **Token budget**: Controls how aggressively context is compacted; higher = richer context
+- **Strategies**: See [Compaction Strategies](#compaction-strategies) for details on each
 
 ## Storage
 
@@ -179,10 +254,38 @@ Press `t` on any session to open the transfer panel. Choose:
 - **Preview** — shows the exact shell command (no side effects)
 - **Execute** — builds the bundle and launches the target tool
 
+## Troubleshooting
+
+### `command not found: cf`
+- **Cause**: Tool not in PATH after installation
+- **Fix**: Restart your shell, or reinstall: `uv tool install contextforge --force`
+
+### `RuntimeError: no sessions found` or empty `cf ls`
+- **Cause**: No sessions discovered from installed tools
+- **Fix**: Run `cf scan` first; check that you have Claude Code/Codex/altimate-code with session history
+
+### `ANTHROPIC_API_KEY not set` warning
+- **Cause**: No API key configured for summaries
+- **Fix**: Set it via `cf config set llm.api_key sk-ant-...` or set `ANTHROPIC_API_KEY` env var
+- **Note**: Summaries are optional; you can still use ContextForge without API keys
+
+### Session not appearing after tool update
+- **Cause**: Tool storage location changed or was not yet indexed
+- **Fix**: Run `cf scan` again to reindex all tools
+
+### `cf dashboard` crashes or displays incorrectly
+- **Cause**: Terminal size too small or unsupported terminal type
+- **Fix**: Resize terminal to at least 80x24; try a different terminal emulator
+
+### Database locked / concurrent access error
+- **Cause**: Two `cf` commands running at once
+- **Fix**: Wait for the first command to finish, or delete `~/.contextforge/contextforge.db` and run `cf scan` again
+
 ## Development
 
 ```bash
 uv sync              # install all dependencies including dev
 uv run pytest        # run tests
 uv run cf --help     # run CLI locally
+uv tool install . --force  # test local installation
 ```

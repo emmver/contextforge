@@ -183,29 +183,21 @@ class CodexAdapter(ToolAdapter):
                     continue
 
                 entry_type = entry.get("type", "")
-                if entry_type == "response_item":
-                    payload = entry.get("payload", {})
-                    item = payload.get("item", {})
-                    role = item.get("role")
-                    if role not in ("user", "assistant"):
-                        continue
-                    content_blocks = item.get("content", [])
-                    text_parts = []
-                    for block in content_blocks:
-                        if isinstance(block, dict) and block.get("type") == "input_text":
-                            text_parts.append(block.get("text", ""))
-                        elif isinstance(block, dict) and block.get("type") == "output_text":
-                            text_parts.append(block.get("text", ""))
-                    content = "\n".join(text_parts).strip()
-                    if content:
-                        messages.append(Message(role=role, content=content))
+                payload = entry.get("payload", {})
 
-                elif entry_type == "event_msg":
-                    payload = entry.get("payload", {})
-                    role = payload.get("role")
-                    content = payload.get("content", "")
-                    if role in ("user", "assistant") and content:
-                        messages.append(Message(role=role, content=str(content)))
+                if entry_type == "event_msg":
+                    msg_type = payload.get("type", "")
+                    # user_message / agent_message are the clean human-facing turns.
+                    # response_item entries are skipped — they contain system context
+                    # injections (AGENTS.md, environment_context) and duplicate content.
+                    if msg_type == "user_message":
+                        text = payload.get("message", "")
+                        if text:
+                            messages.append(Message(role="user", content=str(text)))
+                    elif msg_type == "agent_message":
+                        text = payload.get("message", "")
+                        if text:
+                            messages.append(Message(role="assistant", content=str(text)))
 
         return messages
 

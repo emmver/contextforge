@@ -4,10 +4,12 @@ from __future__ import annotations
 from contextforge.adapters.altimate_code import AltimateCodeAdapter
 from contextforge.adapters.base import ToolAdapter
 from contextforge.adapters.claude_code import ClaudeCodeAdapter
+from contextforge.adapters.claude_desktop import ClaudeDesktopAdapter
 from contextforge.adapters.codex import CodexAdapter
 
 ADAPTERS: dict[str, type[ToolAdapter]] = {
     "claude_code": ClaudeCodeAdapter,
+    "claude_desktop": ClaudeDesktopAdapter,
     "codex": CodexAdapter,
     "altimate_code": AltimateCodeAdapter,
 }
