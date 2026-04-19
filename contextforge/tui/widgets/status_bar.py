@@ -8,8 +8,16 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 
+def _fmt_tokens(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M tok"
+    if n >= 1_000:
+        return f"{n // 1_000}k tok"
+    return f"{n} tok"
+
+
 class StatusBar(Widget):
-    """Shows last scan time and per-tool session counts."""
+    """Shows last scan time, per-tool session counts, and filter state."""
 
     DEFAULT_CSS = """
     StatusBar {
@@ -20,14 +28,21 @@ class StatusBar(Widget):
         padding: 0 1;
         layout: horizontal;
     }
-    StatusBar Static {
+    StatusBar #status-counts {
         width: auto;
         margin-right: 2;
+    }
+    StatusBar #status-filter {
+        width: 1fr;
+    }
+    StatusBar #status-scan-time {
+        width: auto;
     }
     """
 
     def compose(self):
         yield Static("", id="status-counts")
+        yield Static("", id="status-filter")
         yield Static("", id="status-scan-time")
 
     def refresh_stats(self) -> None:
@@ -41,19 +56,47 @@ class StatusBar(Widget):
         rows = get_sessions(db, limit=10_000)
 
         counts: dict[str, int] = {}
+        total_tokens = 0
         for row in rows:
             tool = row.get("tool", "unknown")
             counts[tool] = counts.get(tool, 0) + 1
+            total_tokens += row.get("token_count") or 0
 
         tool_parts = []
-        labels = {"claude_code": "CC", "codex": "Codex", "altimate_code": "Alt"}
+        labels = {
+            "claude_code": "CC",
+            "codex": "Codex",
+            "altimate_code": "Alt",
+            "claude_desktop": "Desktop",
+        }
         for tool, label in labels.items():
             n = counts.get(tool, 0)
-            tool_parts.append(f"{label}:{n}")
+            if n:
+                tool_parts.append(f"{label}:{n}")
 
+        tok_str = _fmt_tokens(total_tokens)
         self.query_one("#status-counts").update(
-            f"Sessions — {' │ '.join(tool_parts)} │ Total:{len(rows)}"
+            f"Sessions — {' │ '.join(tool_parts)} │ Total:{len(rows)} │ {tok_str}"
         )
 
         now = datetime.now(timezone.utc).strftime("%H:%M:%S")
         self.query_one("#status-scan-time").update(f"Updated {now}")
+
+    def set_filter_indicator(
+        self, text: str, tool: str | None, match_count: int
+    ) -> None:
+        """Show or clear the active filter indicator."""
+        if not text and tool is None:
+            self.query_one("#status-filter", Static).update("")
+            return
+
+        parts: list[str] = []
+        if text:
+            parts.append(f'"{text}"')
+        if tool:
+            short = {"claude_code": "CC", "codex": "Codex", "altimate_code": "Alt", "claude_desktop": "Desktop"}.get(tool, tool)
+            parts.append(short)
+
+        self.query_one("#status-filter", Static).update(
+            f"[yellow]Filter: {' + '.join(parts)} ({match_count} matches)[/yellow]"
+        )

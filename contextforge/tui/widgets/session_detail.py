@@ -1,12 +1,61 @@
 """SessionDetail widget — right panel showing summary and metadata for selected session."""
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from textual.app import ComposeResult
-from textual.reactive import reactive
+from textual.containers import Vertical
 from textual.widget import Widget
-from textual.widgets import Label, Markdown, Static
+from textual.widgets import Markdown, Static
+
+TOOL_COLORS = {
+    "claude_code": "cyan",
+    "codex": "green",
+    "altimate_code": "magenta",
+    "claude_desktop": "yellow",
+}
+TOOL_LABELS = {
+    "claude_code": "Claude Code",
+    "codex": "Codex",
+    "altimate_code": "altimate",
+    "claude_desktop": "Desktop",
+}
+
+
+def _meta_line(label: str, value: str, color: str = "cyan") -> str:
+    return f"[bold {color}]{label:<10}[/bold {color}] {value}"
+
+
+def _fmt_tokens(n: int | None) -> str:
+    if not n:
+        return "—"
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n // 1_000}k"
+    return str(n)
+
+
+def _token_color(n: int | None) -> str:
+    if not n:
+        return "dim"
+    if n >= 100_000:
+        return "bold red"
+    if n >= 20_000:
+        return "yellow"
+    return "dim"
+
+
+def _fmt_ts(ms: int | None, fmt: str = "%Y-%m-%d %H:%M UTC") -> str:
+    if not ms:
+        return "?"
+    try:
+        dt = datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+        return dt.strftime(fmt)
+    except Exception:
+        return "?"
 
 
 class SessionDetail(Widget):
@@ -17,35 +66,59 @@ class SessionDetail(Widget):
         width: 2fr;
         height: 1fr;
         padding: 1 2;
-        border-left: tall $primary;
+        border: tall $primary;
+        border-title-color: $accent;
+        border-title-style: bold;
         overflow-y: auto;
-    }
-    SessionDetail #detail-title {
-        text-style: bold;
-        color: $accent;
-        margin-bottom: 1;
-    }
-    SessionDetail #detail-meta {
-        color: $text-muted;
-        margin-bottom: 1;
-    }
-    SessionDetail #detail-summary {
-        margin-top: 1;
     }
     SessionDetail #detail-placeholder {
         color: $text-disabled;
         margin: 4 0;
         text-align: center;
     }
+    SessionDetail #detail-title {
+        text-style: bold;
+        color: $accent;
+        margin-bottom: 1;
+    }
+    SessionDetail #detail-meta-block {
+        margin-bottom: 1;
+        border-bottom: solid $primary-background-lighten-1;
+        padding-bottom: 1;
+    }
+    SessionDetail #detail-summary-label {
+        text-style: bold;
+        color: $text-muted;
+        margin-bottom: 1;
+    }
+    SessionDetail Markdown {
+        background: transparent;
+        color: $text;
+    }
     """
 
     _current_id: str | None = None
 
     def compose(self) -> ComposeResult:
-        yield Static("No session selected", id="detail-placeholder")
+        yield Static("← Select a session", id="detail-placeholder")
         yield Static("", id="detail-title")
-        yield Static("", id="detail-meta")
-        yield Static("", id="detail-summary")
+        with Vertical(id="detail-meta-block"):
+            yield Static("", id="detail-tool")
+            yield Static("", id="detail-cwd")
+            yield Static("", id="detail-tokens")
+            yield Static("", id="detail-created")
+            yield Static("", id="detail-updated")
+            yield Static("", id="detail-status")
+            yield Static("", id="detail-tags")
+            yield Static("", id="detail-id")
+        yield Static("── Summary ──", id="detail-summary-label")
+        yield Markdown("", id="detail-summary-md")
+
+    def on_mount(self) -> None:
+        self.border_title = "Detail"
+        self.query_one("#detail-summary-label").display = False
+        self.query_one("#detail-meta-block").display = False
+        self.query_one("#detail-title").display = False
 
     def load(self, session_id: str) -> None:
         """Load and display the given session."""
@@ -63,46 +136,56 @@ class SessionDetail(Widget):
         if row is None:
             return
 
-        from datetime import datetime, timezone
-        updated_ms = row.get("updated_at") or 0
-        try:
-            dt = datetime.fromtimestamp(updated_ms / 1000, tz=timezone.utc)
-            updated_str = dt.strftime("%Y-%m-%d %H:%M UTC")
-        except Exception:
-            updated_str = "?"
-
         tool = row.get("tool", "?")
         title = row.get("title") or "(no title)"
         cwd = row.get("cwd") or "?"
-        tokens = str(row.get("token_count") or "?")
+        tokens_int = row.get("token_count")
         status = row.get("status") or "?"
         tags_raw = row.get("tags") or "[]"
-        import json
         try:
             tags = ", ".join(json.loads(tags_raw)) or "—"
         except Exception:
             tags = "—"
 
-        summary = row.get("summary") or "No summary yet — run: cf summarize <id>"
+        created_str = _fmt_ts(row.get("created_at"))
+        updated_str = _fmt_ts(row.get("updated_at"))
 
+        summary = row.get("summary") or "*No summary yet* — run: `cf summarize <id>`"
+
+        # Tool label with color
+        tool_color = TOOL_COLORS.get(tool, "white")
+        tool_display = TOOL_LABELS.get(tool, tool)
+        tool_markup = f"[{tool_color}]{tool_display}[/{tool_color}]"
+
+        # Token display with color
+        tok_color = _token_color(tokens_int)
+        tok_str = _fmt_tokens(tokens_int)
+        tok_markup = f"[{tok_color}]{tok_str}[/{tok_color}]"
+
+        # Show everything
         self.query_one("#detail-placeholder").display = False
-        self.query_one("#detail-title").update(f"● {title}")
-        self.query_one("#detail-meta").update(
-            f"Tool:     {tool}\n"
-            f"CWD:      {cwd}\n"
-            f"Tokens:   {tokens}\n"
-            f"Updated:  {updated_str}\n"
-            f"Status:   {status}\n"
-            f"Tags:     {tags}\n"
-            f"ID:       {session_id}"
-        )
-        self.query_one("#detail-summary").update(
-            f"\n── Summary ──\n\n{summary}"
-        )
+        self.query_one("#detail-title").display = True
+        self.query_one("#detail-meta-block").display = True
+        self.query_one("#detail-summary-label").display = True
+
+        self.query_one("#detail-title", Static).update(f"[bold accent]{title}[/bold accent]")
+        self.query_one("#detail-tool", Static).update(_meta_line("Tool", tool_markup, tool_color))
+        self.query_one("#detail-cwd", Static).update(_meta_line("CWD", f"[dim]{cwd}[/dim]", "dim"))
+        self.query_one("#detail-tokens", Static).update(_meta_line("Tokens", tok_markup, "dim"))
+        self.query_one("#detail-created", Static).update(_meta_line("Created", f"[dim]{created_str}[/dim]", "dim"))
+        self.query_one("#detail-updated", Static).update(_meta_line("Updated", f"[dim]{updated_str}[/dim]", "dim"))
+        self.query_one("#detail-status", Static).update(_meta_line("Status", status, "dim"))
+        self.query_one("#detail-tags", Static).update(_meta_line("Tags", tags, "dim"))
+        self.query_one("#detail-id", Static).update(_meta_line("ID", f"[dim]{session_id}[/dim]", "dim"))
+
+        md = self.query_one("#detail-summary-md", Markdown)
+        self.app.call_later(md.update, summary)
 
     def clear(self) -> None:
         self._current_id = None
         self.query_one("#detail-placeholder").display = True
-        self.query_one("#detail-title").update("")
-        self.query_one("#detail-meta").update("")
-        self.query_one("#detail-summary").update("")
+        self.query_one("#detail-title").display = False
+        self.query_one("#detail-meta-block").display = False
+        self.query_one("#detail-summary-label").display = False
+        self.query_one("#detail-title", Static).update("")
+        self.app.call_later(self.query_one("#detail-summary-md", Markdown).update, "")

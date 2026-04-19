@@ -28,6 +28,7 @@ class ContextForgeApp(App):
         Binding("t", "transfer", "Transfer"),
         Binding("c", "compact", "Compact"),
         Binding("x", "tokens", "Tokens"),
+        Binding("a", "analytics", "Analytics"),
         Binding("/", "filter", "Filter"),
     ]
 
@@ -57,6 +58,11 @@ class ContextForgeApp(App):
         self._current_session_id = message.session_id
         self._current_tool = message.tool
 
+    def on_session_table_filter_changed(self, message: SessionTable.FilterChanged) -> None:
+        self.query_one(StatusBar).set_filter_indicator(
+            message.text, message.tool, message.match_count
+        )
+
     # ── Actions ───────────────────────────────────────────────────────────────
 
     def action_rescan(self) -> None:
@@ -68,7 +74,6 @@ class ContextForgeApp(App):
         result = scan(db, quiet=True)
         self.query_one(SessionTable).reload()
         self.query_one(StatusBar).refresh_stats()
-        n = result.new + result.updated
         self.notify(
             f"Scan complete: {result.new} new, {result.updated} updated",
             title="Rescan",
@@ -156,7 +161,6 @@ class ContextForgeApp(App):
                 title="Transfer executed",
             )
         else:
-            # Show the command in a notification (copy-paste friendly)
             self.notify(
                 f"[cyan]{cmd}[/cyan]",
                 title=f"Preview → {target_tool} ({method})",
@@ -190,7 +194,11 @@ class ContextForgeApp(App):
             return
         self.push_screen(TokensPanel(session_id=sid, db_path=self.db_path))
 
+    def action_analytics(self) -> None:
+        """Open the analytics dashboard modal."""
+        from contextforge.tui.widgets.stats_panel import StatsPanel
+        self.push_screen(StatsPanel())
+
     def action_filter(self) -> None:
-        """Focus the table (placeholder for future filter input)."""
-        self.query_one(SessionTable).query_one("DataTable").focus()
-        self.notify("Use arrow keys to navigate. Filter coming in Phase 5.", timeout=3)
+        """Toggle the filter bar in the session table."""
+        self.query_one(SessionTable).toggle_filter()
