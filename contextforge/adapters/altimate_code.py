@@ -25,6 +25,16 @@ def _count_tokens(text: str) -> int:
         return len(text) // 4
 
 
+def _compute_message_tokens(msg) -> int:
+    """Count tokens across all content: text + tool_call inputs + tool_result outputs."""
+    total = _count_tokens(msg.content)
+    for tc in msg.tool_calls:
+        total += _count_tokens(tc.get("input", ""))
+    for tr in msg.tool_results:
+        total += _count_tokens(tr.get("output", ""))
+    return total
+
+
 class AltimateCodeAdapter(ToolAdapter):
     tool_name = "altimate_code"
     default_paths = [_OPENCODE_DB]
@@ -86,8 +96,6 @@ class AltimateCodeAdapter(ToolAdapter):
             conn = sqlite3.connect(str(_OPENCODE_DB))
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
-            # Join message + part to get full content
-            # Note: altimate-code stores data as JSON in 'data' column
             cur.execute(
                 """
                 SELECT
@@ -95,7 +103,11 @@ class AltimateCodeAdapter(ToolAdapter):
                     json_extract(m.data, '$.role') as role,
                     m.time_created as ts,
                     json_extract(p.data, '$.type') as part_type,
-                    json_extract(p.data, '$.text') as content
+                    json_extract(p.data, '$.text') as text_content,
+                    json_extract(p.data, '$.tool') as tool_name,
+                    json_extract(p.data, '$.callID') as call_id,
+                    json_extract(p.data, '$.state.input') as tool_input,
+                    json_extract(p.data, '$.state.output') as tool_output
                 FROM message m
                 LEFT JOIN part p ON p.message_id = m.id
                 WHERE m.session_id = ?
@@ -112,24 +124,29 @@ class AltimateCodeAdapter(ToolAdapter):
         current_msg_id: str | None = None
         current_role: str | None = None
         current_parts: list[str] = []
+        current_tool_calls: list[dict] = []
+        current_tool_results: list[dict] = []
         current_ts: datetime | None = None
 
         def flush():
             nonlocal current_msg_id, current_role, current_parts, current_ts
-            if current_role and current_parts:
+            nonlocal current_tool_calls, current_tool_results
+            if current_role and (current_parts or current_tool_calls):
                 content = "\n".join(p for p in current_parts if p)
-                if content:
-                    messages.append(
-                        Message(
-                            role=current_role,
-                            content=content,
-                            timestamp=current_ts,
-                            token_count=_count_tokens(content),
-                        )
-                    )
+                msg = Message(
+                    role=current_role,
+                    content=content,
+                    timestamp=current_ts,
+                    tool_calls=list(current_tool_calls),
+                    tool_results=list(current_tool_results),
+                )
+                msg.token_count = _compute_message_tokens(msg)
+                messages.append(msg)
             current_msg_id = None
             current_role = None
             current_parts = []
+            current_tool_calls = []
+            current_tool_results = []
             current_ts = None
 
         for row in rows:
@@ -138,7 +155,6 @@ class AltimateCodeAdapter(ToolAdapter):
             if role not in ("user", "assistant"):
                 continue
 
-            # Flush when message ID changes (new message in the message table)
             if msg_id != current_msg_id:
                 flush()
                 current_msg_id = msg_id
@@ -149,28 +165,36 @@ class AltimateCodeAdapter(ToolAdapter):
                     current_ts = None
 
             part_type = row["part_type"] or ""
-            content = row["content"] or ""
 
-            if part_type in ("text", "reasoning") and content:
-                if isinstance(content, str):
+            if part_type in ("text", "reasoning"):
+                content = row["text_content"] or ""
+                if isinstance(content, str) and content:
                     try:
                         parsed = json.loads(content)
                         if isinstance(parsed, dict):
                             content = parsed.get("text", str(parsed))
                     except (json.JSONDecodeError, TypeError):
                         pass
-                current_parts.append(str(content).strip())
+                    content = str(content).strip()
+                    if content:
+                        current_parts.append(content)
+
+            elif part_type == "tool":
+                tool_name = row["tool_name"] or "?"
+                tool_input = row["tool_input"] or ""
+                tool_output = row["tool_output"] or ""
+                # input from json_extract is already a JSON string; keep as-is for token counting
+                current_tool_calls.append({"name": tool_name, "input": tool_input})
+                if tool_output:
+                    current_tool_results.append({"output": tool_output})
 
         flush()
         return messages
 
     def _count_session_tokens(self, session_id: str) -> int:
-        """Count total tokens in a session."""
+        """Count total tokens in a session (text + tool inputs + tool outputs)."""
         messages = self.load_messages(session_id)
-        total = 0
-        for msg in messages:
-            total += msg.token_count or _count_tokens(msg.content)
-        return total
+        return sum(msg.token_count or _compute_message_tokens(msg) for msg in messages)
 
     def build_inject_command(
         self,
