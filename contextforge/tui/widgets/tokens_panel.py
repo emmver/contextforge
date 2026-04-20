@@ -1,13 +1,127 @@
 """TokensPanel — modal screen showing per-turn token analysis for a session."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import ScrollableContainer, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import DataTable, Footer, Static
+from textual.widgets import DataTable, Static
+
+from contextforge.models.session import Message
+
+
+class TurnDetailPanel(ModalScreen):
+    """Modal showing the full content of a single turn."""
+
+    BINDINGS = [
+        Binding("escape,q", "dismiss(None)", "Close"),
+    ]
+
+    DEFAULT_CSS = """
+    TurnDetailPanel {
+        align: center middle;
+    }
+    TurnDetailPanel > Vertical {
+        width: 92%;
+        height: 88%;
+        border: thick $accent;
+        background: $surface;
+        padding: 0 1;
+    }
+    TurnDetailPanel #turn-header {
+        height: auto;
+        padding: 1 1 0 1;
+        border-bottom: solid $primary-background-lighten-1;
+        margin-bottom: 1;
+    }
+    TurnDetailPanel ScrollableContainer {
+        height: 1fr;
+        padding: 0 1;
+    }
+    TurnDetailPanel .section-label {
+        color: $text-muted;
+        text-style: bold;
+        margin-top: 1;
+    }
+    TurnDetailPanel .content-block {
+        color: $text;
+        margin-bottom: 1;
+    }
+    TurnDetailPanel .tool-name {
+        color: $warning;
+        text-style: bold;
+    }
+    TurnDetailPanel .tool-input {
+        color: $text-muted;
+        margin-left: 2;
+    }
+    TurnDetailPanel .tool-output {
+        color: $success;
+        margin-left: 2;
+    }
+    TurnDetailPanel #turn-footer {
+        height: 1;
+        color: $text-disabled;
+        text-align: center;
+    }
+    """
+
+    def __init__(self, turn_num: int, msg: Message) -> None:
+        super().__init__()
+        self._turn_num = turn_num
+        self._msg = msg
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Static("", id="turn-header")
+            with ScrollableContainer():
+                yield Static("", id="turn-body")
+            yield Static("ESC / q — close", id="turn-footer")
+
+    def on_mount(self) -> None:
+        msg = self._msg
+        role_color = "cyan" if msg.role == "user" else "green"
+
+        self.query_one("#turn-header", Static).update(
+            f"[bold]Turn #{self._turn_num}[/bold]  "
+            f"[{role_color}]{msg.role}[/{role_color}]  "
+            f"[dim]{(msg.token_count or 0):,} tokens[/dim]"
+            + (f"  [yellow]{len(msg.tool_calls)} call(s)[/yellow]" if msg.tool_calls else "")
+            + (f"  [magenta]{len(msg.tool_results)} result(s)[/magenta]" if msg.tool_results else "")
+        )
+
+        parts: list[str] = []
+
+        # ── Text content ────────────────────────────────────────────────────
+        if msg.content:
+            parts.append("[bold dim]── Content ──[/bold dim]")
+            parts.append(msg.content)
+
+        # ── Tool calls ──────────────────────────────────────────────────────
+        if msg.tool_calls:
+            parts.append("\n[bold dim]── Tool Calls ──[/bold dim]")
+            for i, tc in enumerate(msg.tool_calls, 1):
+                name = tc.get("name", "?")
+                raw_input = tc.get("input", "")
+                try:
+                    formatted = json.dumps(json.loads(raw_input), indent=2)
+                except (json.JSONDecodeError, TypeError):
+                    formatted = raw_input
+                parts.append(f"[bold yellow]{i}. {name}[/bold yellow]")
+                parts.append(f"[dim]{formatted}[/dim]")
+
+        # ── Tool results ────────────────────────────────────────────────────
+        if msg.tool_results:
+            parts.append("\n[bold dim]── Tool Results ──[/bold dim]")
+            for i, tr in enumerate(msg.tool_results, 1):
+                output = tr.get("output", "")
+                parts.append(f"[bold green]Result {i}[/bold green]")
+                parts.append(f"[dim]{output}[/dim]")
+
+        self.query_one("#turn-body", Static).update("\n".join(parts))
 
 
 class TokensPanel(ModalScreen):
@@ -15,6 +129,7 @@ class TokensPanel(ModalScreen):
 
     BINDINGS = [
         Binding("escape,q", "dismiss(None)", "Close"),
+        Binding("enter", "open_turn", "View turn"),
     ]
 
     DEFAULT_CSS = """
@@ -57,23 +172,40 @@ class TokensPanel(ModalScreen):
         super().__init__()
         self._session_id = session_id
         self._db_path = db_path
+        self._messages: list[Message] = []
 
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static("", id="tokens-header")
             yield Static("", id="tokens-stats")
             yield DataTable(id="tokens-table", show_cursor=True, zebra_stripes=True)
-            yield Static("ESC / q — close", id="tokens-footer")
+            yield Static("ESC / q — close  │  Enter — view turn", id="tokens-footer")
 
     def on_mount(self) -> None:
         self._load()
 
+    def action_open_turn(self) -> None:
+        table = self.query_one("#tokens-table", DataTable)
+        row_idx = table.cursor_row
+        if 0 <= row_idx < len(self._messages):
+            self.app.push_screen(TurnDetailPanel(row_idx + 1, self._messages[row_idx]))
+
     def _load(self) -> None:
-        from contextforge.core.db import get_db
+        from contextforge.adapters.registry import get_adapter
+        from contextforge.core.db import get_db, get_session
         from contextforge.core.token_analyzer import analyze_tokens
 
         db = get_db(self._db_path)
         report = analyze_tokens(db, self._session_id)
+
+        # Load messages so TurnDetailPanel can show full content
+        row = get_session(db, self._session_id)
+        if row is not None:
+            try:
+                adapter = get_adapter(row["tool"])
+                self._messages = adapter.load_messages(self._session_id)
+            except Exception:
+                self._messages = []
 
         header = self.query_one("#tokens-header", Static)
         stats = self.query_one("#tokens-stats", Static)
