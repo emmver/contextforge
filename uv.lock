@@ -151,8 +151,8 @@ wheels = [
 ]
 
 [[package]]
-name = "context-forge"
-version = "0.1.0"
+name = "context-forge-cli"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },

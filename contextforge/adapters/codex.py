@@ -7,6 +7,8 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+import tiktoken
+
 from contextforge.adapters.base import ToolAdapter
 from contextforge.models.session import Message, Session
 
@@ -27,6 +29,16 @@ def _ts_to_dt(ts) -> datetime:
     return datetime.fromtimestamp(ts, tz=timezone.utc)
 _CODEX_SESSIONS_DIR = Path.home() / ".codex" / "sessions"
 _SESSION_INDEX = Path.home() / ".codex" / "session_index.jsonl"
+
+
+def _count_tokens(text: str) -> int:
+    """Count tokens in text using tiktoken for Claude models."""
+    try:
+        enc = tiktoken.encoding_for_model("claude-3-5-sonnet-20241022")
+        return len(enc.encode(text))
+    except Exception:
+        # Fallback: rough estimate (~4 chars per token)
+        return len(text) // 4
 
 
 class CodexAdapter(ToolAdapter):
@@ -193,11 +205,21 @@ class CodexAdapter(ToolAdapter):
                     if msg_type == "user_message":
                         text = payload.get("message", "")
                         if text:
-                            messages.append(Message(role="user", content=str(text)))
+                            text_str = str(text)
+                            messages.append(Message(
+                                role="user",
+                                content=text_str,
+                                token_count=_count_tokens(text_str),
+                            ))
                     elif msg_type == "agent_message":
                         text = payload.get("message", "")
                         if text:
-                            messages.append(Message(role="assistant", content=str(text)))
+                            text_str = str(text)
+                            messages.append(Message(
+                                role="assistant",
+                                content=text_str,
+                                token_count=_count_tokens(text_str),
+                            ))
 
         return messages
 

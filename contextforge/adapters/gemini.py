@@ -6,10 +6,22 @@ import shlex
 from datetime import datetime, timezone
 from pathlib import Path
 
+import tiktoken
+
 from contextforge.adapters.base import ToolAdapter
 from contextforge.models.session import Message, Session
 
 _GEMINI_TMP_BASE = Path.home() / ".gemini" / "tmp"
+
+
+def _count_tokens(text: str) -> int:
+    """Count tokens in text using tiktoken for Claude models."""
+    try:
+        enc = tiktoken.encoding_for_model("claude-3-5-sonnet-20241022")
+        return len(enc.encode(text))
+    except Exception:
+        # Fallback: rough estimate (~4 chars per token)
+        return len(text) // 4
 
 
 class GeminiAdapter(ToolAdapter):
@@ -163,6 +175,7 @@ class GeminiAdapter(ToolAdapter):
                     role="user" if msg_type == "user" else "assistant",
                     content=content,
                     timestamp=ts,
+                    token_count=_count_tokens(content),
                 )
             )
 

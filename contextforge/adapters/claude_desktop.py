@@ -240,8 +240,12 @@ class ClaudeDesktopAdapter(ToolAdapter):
                         pass
 
                 messages.append(
-                    Message(role="user" if role == "user" else "assistant",
-                            content=content, timestamp=ts)
+                    Message(
+                        role="user" if role == "user" else "assistant",
+                        content=content,
+                        timestamp=ts,
+                        token_count=_count_tokens(content),
+                    )
                 )
         return messages
 
@@ -279,7 +283,12 @@ class ClaudeDesktopAdapter(ToolAdapter):
                     except (ValueError, AttributeError):
                         pass
 
-                messages.append(Message(role=role, content=content, timestamp=ts))
+                messages.append(Message(
+                    role=role,
+                    content=content,
+                    timestamp=ts,
+                    token_count=_count_tokens(content),
+                ))
         return messages
 
     def _count_session_tokens(self, session_id: str) -> int:
@@ -287,7 +296,7 @@ class ClaudeDesktopAdapter(ToolAdapter):
         messages = self.load_messages(session_id)
         total = 0
         for msg in messages:
-            total += _count_tokens(msg.content)
+            total += msg.token_count or _count_tokens(msg.content)
         return total
 
     def build_inject_command(

@@ -333,6 +333,7 @@ class ClaudeCodeAdapter(ToolAdapter):
                         role="user" if role == "user" else "assistant",
                         content=content,
                         timestamp=ts,
+                        token_count=_count_tokens(content),
                     )
                 )
 
@@ -340,35 +341,11 @@ class ClaudeCodeAdapter(ToolAdapter):
 
     def _count_session_tokens(self, jsonl_path: Path) -> int:
         """Count total tokens in a session JSONL file."""
+        session_id = jsonl_path.stem
+        messages = self.load_messages(session_id)
         total = 0
-        try:
-            with jsonl_path.open() as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-
-                    entry_type = entry.get("type", "")
-                    if entry_type not in ("user", "assistant"):
-                        continue
-
-                    msg_data = entry.get("message", {})
-                    content_raw = msg_data.get("content", "")
-
-                    # Skip tool-result-only arrays (not actual user/assistant content)
-                    if isinstance(content_raw, list):
-                        if not any(block.get("type") == "text" for block in content_raw if isinstance(block, dict)):
-                            continue
-
-                    content = _parse_content(content_raw)
-                    if content:
-                        total += _count_tokens(content)
-        except Exception:
-            pass
+        for msg in messages:
+            total += msg.token_count or _count_tokens(msg.content)
         return total
 
     def build_inject_command(

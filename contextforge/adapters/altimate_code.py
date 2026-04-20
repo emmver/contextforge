@@ -117,6 +117,7 @@ class AltimateCodeAdapter(ToolAdapter):
                             role=current_role,
                             content=content,
                             timestamp=current_ts,
+                            token_count=_count_tokens(content),
                         )
                     )
             current_role = None
@@ -157,7 +158,7 @@ class AltimateCodeAdapter(ToolAdapter):
         messages = self.load_messages(session_id)
         total = 0
         for msg in messages:
-            total += _count_tokens(msg.content)
+            total += msg.token_count or _count_tokens(msg.content)
         return total
 
     def build_inject_command(
