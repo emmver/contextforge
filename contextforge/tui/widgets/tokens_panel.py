@@ -92,18 +92,28 @@ class TokensPanel(ModalScreen):
 
         # ── Stats bar ───────────────────────────────────────────────────────
         max_t = report.max_turn
+        tool_summary = ""
+        if report.has_tool_data:
+            tool_summary = (
+                f"  │  [yellow]Calls {report.tool_call_total:,}[/yellow]"
+                f"  [magenta]Results {report.tool_result_total:,}[/magenta]"
+            )
         stats.update(
             f"Total [bold]{report.total:,}[/bold] tokens  │  "
             f"[cyan]User {report.user_total:,}[/cyan] (avg {report.avg_user:,.0f})  │  "
             f"[green]Asst {report.assistant_total:,}[/green] (avg {report.avg_assistant:,.0f})  │  "
             f"{report.turn_count} turns"
+            + tool_summary
             + (f"  │  Heaviest: turn #{max_t.turn} "
                f"[bold]{max_t.tokens:,}[/bold] tok [{max_t.role}]"
                if max_t else "")
         )
 
         # ── Table ────────────────────────────────────────────────────────────
-        table.add_columns("#", "Role", "Tokens", "Cumul.", "Bar", "Preview")
+        if report.has_tool_data:
+            table.add_columns("#", "Role", "Tokens", "Text", "Calls", "Results", "Cumul.", "Bar", "Preview")
+        else:
+            table.add_columns("#", "Role", "Tokens", "Cumul.", "Bar", "Preview")
 
         max_tokens = max(t.tokens for t in report.turns)
 
@@ -120,14 +130,29 @@ class TokensPanel(ModalScreen):
                 role_str = f"[dim]{t.role}[/dim]"
                 bar_str = f"[dim]{'█' * bar_len}[/dim]"
 
-            table.add_row(
-                str(t.turn),
-                role_str,
-                f"{t.tokens:,}",
-                f"{t.cumulative:,}",
-                bar_str,
-                t.content_preview,
-            )
+            if report.has_tool_data:
+                calls_str = f"[yellow]{t.tool_call_tokens:,}[/yellow]" if t.tool_call_tokens else "[dim]—[/dim]"
+                results_str = f"[magenta]{t.tool_result_tokens:,}[/magenta]" if t.tool_result_tokens else "[dim]—[/dim]"
+                table.add_row(
+                    str(t.turn),
+                    role_str,
+                    f"{t.tokens:,}",
+                    f"{t.text_tokens:,}",
+                    calls_str,
+                    results_str,
+                    f"{t.cumulative:,}",
+                    bar_str,
+                    t.content_preview,
+                )
+            else:
+                table.add_row(
+                    str(t.turn),
+                    role_str,
+                    f"{t.tokens:,}",
+                    f"{t.cumulative:,}",
+                    bar_str,
+                    t.content_preview,
+                )
 
         # Highlight the heaviest row
         if max_t:

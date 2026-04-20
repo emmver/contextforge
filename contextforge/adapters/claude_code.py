@@ -64,6 +64,16 @@ def _count_tokens(text: str) -> int:
         return len(text) // 4
 
 
+def _compute_message_tokens(msg: Message) -> int:
+    """Count tokens across all content in a message: text + tool_call inputs + tool_result outputs."""
+    total = _count_tokens(msg.content)
+    for tc in msg.tool_calls:
+        total += _count_tokens(tc.get("input", ""))
+    for tr in msg.tool_results:
+        total += _count_tokens(tr.get("output", ""))
+    return total
+
+
 class ClaudeCodeAdapter(ToolAdapter):
     tool_name = "claude_code"
     default_paths = [_HISTORY_PATH, _PROJECTS_DIR]
@@ -309,17 +319,6 @@ class ClaudeCodeAdapter(ToolAdapter):
                 role = msg_data.get("role", entry_type)
                 content_raw = msg_data.get("content", "")
 
-                # Skip entries where content is an array of tool results/tool use
-                # (these are Claude's internal messages, not user input or assistant responses)
-                if isinstance(content_raw, list):
-                    # Only include arrays that contain text blocks (actual assistant content)
-                    if not any(block.get("type") == "text" for block in content_raw if isinstance(block, dict)):
-                        continue
-
-                content = _parse_content(content_raw)
-                if not content:
-                    continue
-
                 ts_str = entry.get("timestamp")
                 ts = None
                 if ts_str:
@@ -328,14 +327,63 @@ class ClaudeCodeAdapter(ToolAdapter):
                     except (ValueError, AttributeError):
                         pass
 
-                messages.append(
-                    Message(
-                        role="user" if role == "user" else "assistant",
-                        content=content,
-                        timestamp=ts,
-                        token_count=_count_tokens(content),
+                if isinstance(content_raw, list):
+                    has_text = any(
+                        isinstance(b, dict) and b.get("type") == "text"
+                        for b in content_raw
                     )
+                    has_tool_result = any(
+                        isinstance(b, dict) and b.get("type") == "tool_result"
+                        for b in content_raw
+                    )
+
+                    # tool_result-only user entries: attribute their outputs to the
+                    # last assistant turn (the one that issued the tool calls)
+                    if has_tool_result and not has_text:
+                        if messages and messages[-1].role == "assistant":
+                            last = messages[-1]
+                            for block in content_raw:
+                                if not isinstance(block, dict) or block.get("type") != "tool_result":
+                                    continue
+                                inner = block.get("content", "")
+                                if isinstance(inner, list):
+                                    for item in inner:
+                                        if isinstance(item, dict) and item.get("type") == "text":
+                                            output = item.get("text", "")
+                                            if output:
+                                                last.tool_results.append({"output": output})
+                                elif isinstance(inner, str) and inner:
+                                    last.tool_results.append({"output": inner})
+                            # Recompute token_count now that tool_results have been added
+                            last.token_count = _compute_message_tokens(last)
+                        continue
+
+                    # Extract tool_call entries from assistant content arrays
+                    tool_calls: list[dict] = []
+                    if role != "user":
+                        for block in content_raw:
+                            if not isinstance(block, dict) or block.get("type") != "tool_use":
+                                continue
+                            try:
+                                input_str = json.dumps(block.get("input", {}))
+                            except (TypeError, ValueError):
+                                input_str = ""
+                            tool_calls.append({"name": block.get("name", "?"), "input": input_str})
+                else:
+                    tool_calls = []
+
+                content = _parse_content(content_raw)
+                if not content and not tool_calls:
+                    continue
+
+                msg = Message(
+                    role="user" if role == "user" else "assistant",
+                    content=content,
+                    timestamp=ts,
+                    tool_calls=tool_calls,
                 )
+                msg.token_count = _compute_message_tokens(msg)
+                messages.append(msg)
 
         return messages
 

@@ -11,6 +11,8 @@ class Message(BaseModel):
     content: str
     timestamp: datetime | None = None
     token_count: int | None = None
+    tool_calls: list[dict] = Field(default_factory=list)  # [{name, input}] on assistant turns
+    tool_results: list[dict] = Field(default_factory=list)  # [{output}] attributed to the assistant turn that invoked them
 
 
 class Session(BaseModel):
