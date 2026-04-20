@@ -1,6 +1,6 @@
 [project]
 name = "context-forge-cli"
-version = "0.2.2"
+version = "0.2.3"
 description = "Session manager and context bridge for agentic CLI tools"
 readme = "README.md"
 license = { text = "MIT" }
