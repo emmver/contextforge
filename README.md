@@ -2,14 +2,14 @@
 
 **Session manager and context bridge for agentic CLI tools.**
 
-ContextForge (`cf`) tracks sessions from Claude Code, Codex, altimate-code, and other
+ContextForge (`cf`) tracks sessions from Claude Code, Claude Desktop, Codex, Gemini, altimate-code, and other
 agentic CLI tools. It generates plain-English summaries of each session and can compact
 and transfer context from one or more sessions into a new session — within the same tool
 or across different tools.
 
 ## What it does
 
-- **Discovers sessions** from Claude Code (`~/.claude/projects/`), Codex (`~/.codex/state_5.sqlite`), and altimate-code (`~/.local/share/altimate-code/`)
+- **Discovers sessions** from Claude Code (`~/.claude/projects/`), Claude Desktop, Codex (`~/.codex/state_5.sqlite`), Gemini (`~/.gemini/sessions/`), and altimate-code (`~/.local/share/altimate-code/`)
 - **Generates summaries** of what each session accomplished (with optional Claude API integration)
 - **Compacts context** intelligently, reducing multi-turn conversations to a token-efficient ContextBundle
 - **Transfers context** across tools and sessions (Claude Code → Codex, Codex → altimate-code, etc.)
@@ -19,7 +19,7 @@ or across different tools.
 
 - **Python 3.13+** (ContextForge requires Python 3.13 or later)
 - **uv** or **pipx** (for installation as a tool)
-- At least one of: Claude Code, Codex, or altimate-code installed and with session history
+- At least one of: Claude Code, Claude Desktop, Codex, Gemini, or altimate-code installed and with session history
 
 ## Install
 
@@ -139,6 +139,7 @@ The method is chosen automatically based on token count and whether a target ses
 | Claude Code (CLI) | `~/.claude/projects/` JSONL | `--system-prompt` / `--resume` |
 | Claude Desktop | `~/Library/Application Support/Claude/local-agent-mode-sessions/` | `--system-prompt` |
 | Codex | `~/.codex/state_5.sqlite` | `resume` / `fork` |
+| Gemini | `~/.gemini/sessions/` JSONL | `exec` / `resume` / `fork` |
 | altimate-code | `~/.local/share/altimate-code/opencode.db` | `run -s` / `import` |
 
 ## Session Summaries
@@ -233,7 +234,7 @@ A full-screen Textual dashboard with live session browsing, filtering, and analy
 │                          │ Worked on UTASTAR ensemble      │
 │                          │ pruning framework...            │
 └──────────────────────────┴─────────────────────────────────┘
- Sessions — CC:12 │ Codex:4 │ Alt:3 │ Total:19 │ 129M tok   14:32:01
+ Sessions — CC:12 │ Codex:4 │ Gemini:2 │ Alt:3 │ Total:21 │ 129M tok   14:32:01
 ```
 
 ### Key bindings
@@ -270,7 +271,7 @@ Press `/` to open the filter bar above the session list:
 ### Transfer modal (`t`)
 
 Press `t` on any session to open the transfer panel. Choose:
-- **Target tool** — Claude Code, Codex, or altimate-code
+- **Target tool** — Claude Code, Claude Desktop, Codex, Gemini, or altimate-code
 - **Strategy** — `summary_only`, `key_messages`, or `full_recent`
 - **Preview** — shows the exact shell command (no side effects)
 - **Execute** — builds the bundle and launches the target tool
