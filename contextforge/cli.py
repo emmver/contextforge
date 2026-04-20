@@ -506,6 +506,79 @@ def config_set(key: str, value: str):
 
 
 # ---------------------------------------------------------------------------
+# cf refresh
+# ---------------------------------------------------------------------------
+
+@app.command()
+def refresh(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q")] = False,
+):
+    """Refresh token counts and metadata for all sessions.
+
+    Recalculates token_count for every session from source data.
+    Useful after adapter updates or schema changes.
+    """
+    cfg = _get_config()
+    database = _get_db(cfg)
+
+    from contextforge.adapters.registry import get_adapter
+
+    # Get all sessions grouped by tool
+    sessions_by_tool = {}
+    for row in database.execute("SELECT DISTINCT tool FROM sessions ORDER BY tool").fetchall():
+        tool = row[0]
+        sessions_by_tool[tool] = []
+        for s in database.execute("SELECT id, title FROM sessions WHERE tool = ? ORDER BY id", [tool]).fetchall():
+            sessions_by_tool[tool].append((s[0], s[1]))
+
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    total_sessions = sum(len(sessions) for sessions in sessions_by_tool.values())
+    updated_count = 0
+    error_count = 0
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        disable=quiet,
+    ) as progress:
+        task = progress.add_task("Refreshing...", total=total_sessions)
+
+        for tool, sessions in sessions_by_tool.items():
+            if not sessions:
+                continue
+
+            try:
+                adapter = get_adapter(tool)
+            except Exception as e:
+                if not quiet:
+                    err_console.print(f"[yellow]Warning:[/yellow] Skipping {tool}: {e}")
+                error_count += len(sessions)
+                progress.advance(task, len(sessions))
+                continue
+
+            for session_id, title in sessions:
+                try:
+                    token_count = adapter._count_session_tokens(session_id)
+                    database["sessions"].update(session_id, {"token_count": token_count})
+                    updated_count += 1
+                    if not quiet:
+                        progress.update(task, description=f"Refreshed {session_id[:12]} ({token_count:,} tokens)")
+                except Exception as e:
+                    error_count += 1
+                    if not quiet:
+                        err_console.print(f"[yellow]Warning:[/yellow] {session_id}: {e}")
+                finally:
+                    progress.advance(task)
+
+    if not quiet:
+        console.print(
+            f"[green]Refresh complete:[/green] "
+            f"{updated_count} updated" + (f", {error_count} errors" if error_count else "")
+        )
+
+
+# ---------------------------------------------------------------------------
 # cf dashboard
 # ---------------------------------------------------------------------------
 

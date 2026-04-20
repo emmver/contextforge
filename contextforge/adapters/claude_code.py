@@ -339,9 +339,16 @@ class ClaudeCodeAdapter(ToolAdapter):
 
         return messages
 
-    def _count_session_tokens(self, jsonl_path: Path) -> int:
-        """Count total tokens in a session JSONL file."""
-        session_id = jsonl_path.stem
+    def _count_session_tokens(self, jsonl_path: Path | str) -> int:
+        """Count total tokens in a session JSONL file or session ID.
+
+        Args:
+            jsonl_path: Either a Path to the JSONL file or a session ID string.
+        """
+        if isinstance(jsonl_path, str):
+            session_id = jsonl_path
+        else:
+            session_id = jsonl_path.stem
         messages = self.load_messages(session_id)
         total = 0
         for msg in messages:

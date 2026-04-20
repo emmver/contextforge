@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from contextforge.models.session import Message, Session
+from contextforge.utils.tokens import count_tokens
 
 
 class ToolAdapter(ABC):
@@ -42,3 +43,17 @@ class ToolAdapter(ABC):
     def is_available(self) -> bool:
         """Return True if this tool is installed and its data paths exist."""
         return any(p.exists() for p in self.default_paths)
+
+    def _count_session_tokens(self, session_id: str | Path) -> int:
+        """Count total tokens in a session by loading and summing message tokens.
+
+        This is the default implementation that all adapters can use.
+        Adapters may override this with more efficient implementations.
+        """
+        if isinstance(session_id, Path):
+            session_id = session_id.stem
+        messages = self.load_messages(str(session_id))
+        total = 0
+        for msg in messages:
+            total += msg.token_count or count_tokens(msg.content)
+        return total
