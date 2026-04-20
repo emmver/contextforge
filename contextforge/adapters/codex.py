@@ -41,6 +41,30 @@ def _count_tokens(text: str) -> int:
         return len(text) // 4
 
 
+def _compute_message_tokens(msg: Message) -> int:
+    total = _count_tokens(msg.content)
+    for tc in msg.tool_calls:
+        total += _count_tokens(tc.get("input", ""))
+    for tr in msg.tool_results:
+        total += _count_tokens(tr.get("output", ""))
+    return total
+
+
+def _extract_function_output(raw_output: str) -> str:
+    """Extract the human-readable output from a Codex function_call_output payload.
+
+    The `output` field is a JSON string: {"output": "...", "metadata": {...}}.
+    Returns the inner "output" string, or the raw string on parse failure.
+    """
+    try:
+        parsed = json.loads(raw_output)
+        if isinstance(parsed, dict):
+            return str(parsed.get("output", raw_output))
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return raw_output
+
+
 class CodexAdapter(ToolAdapter):
     tool_name = "codex"
     default_paths = [_CODEX_DB, _CODEX_SESSIONS_DIR]
@@ -87,7 +111,10 @@ class CodexAdapter(ToolAdapter):
                     cwd=row["cwd"] or None,
                     created_at=created,
                     updated_at=updated,
-                    token_count=row["tokens_used"],
+                    # tokens_used in state_5.sqlite is cumulative API billing spend
+                    # (re-sends full context each call), NOT conversation footprint.
+                    # Leave token_count=None so cf refresh computes it from rollout content.
+                    token_count=None,
                     raw_path=row["rollout_path"] or None,
                     status="unknown",
                 )
@@ -184,6 +211,31 @@ class CodexAdapter(ToolAdapter):
 
     def _parse_rollout(self, path: Path) -> list[Message]:
         messages: list[Message] = []
+
+        # Pending tool data for the current assistant turn (buffered until
+        # we see the agent_message that closes the turn).
+        pending_tool_calls: list[dict] = []
+        pending_tool_results: list[dict] = []
+
+        def flush_pending_assistant(text: str = "", ts=None):
+            """Emit an assistant message with any buffered tool data."""
+            nonlocal pending_tool_calls, pending_tool_results
+            if not text and not pending_tool_calls:
+                pending_tool_calls = []
+                pending_tool_results = []
+                return
+            msg = Message(
+                role="assistant",
+                content=text,
+                timestamp=ts,
+                tool_calls=list(pending_tool_calls),
+                tool_results=list(pending_tool_results),
+            )
+            msg.token_count = _compute_message_tokens(msg)
+            messages.append(msg)
+            pending_tool_calls = []
+            pending_tool_results = []
+
         with path.open() as f:
             for line in f:
                 line = line.strip()
@@ -196,30 +248,42 @@ class CodexAdapter(ToolAdapter):
 
                 entry_type = entry.get("type", "")
                 payload = entry.get("payload", {})
+                ts_str = entry.get("timestamp")
+                ts = None
+                if ts_str:
+                    try:
+                        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    except (ValueError, AttributeError):
+                        pass
 
                 if entry_type == "event_msg":
                     msg_type = payload.get("type", "")
-                    # user_message / agent_message are the clean human-facing turns.
-                    # response_item entries are skipped — they contain system context
-                    # injections (AGENTS.md, environment_context) and duplicate content.
                     if msg_type == "user_message":
-                        text = payload.get("message", "")
+                        # New user turn — flush any orphaned tool data first
+                        flush_pending_assistant()
+                        text = str(payload.get("message", ""))
                         if text:
-                            text_str = str(text)
-                            messages.append(Message(
-                                role="user",
-                                content=text_str,
-                                token_count=_count_tokens(text_str),
-                            ))
+                            msg = Message(role="user", content=text, timestamp=ts)
+                            msg.token_count = _count_tokens(text)
+                            messages.append(msg)
                     elif msg_type == "agent_message":
-                        text = payload.get("message", "")
-                        if text:
-                            text_str = str(text)
-                            messages.append(Message(
-                                role="assistant",
-                                content=text_str,
-                                token_count=_count_tokens(text_str),
-                            ))
+                        text = str(payload.get("message", ""))
+                        flush_pending_assistant(text=text, ts=ts)
+
+                elif entry_type == "response_item":
+                    item_type = payload.get("type", "")
+                    if item_type == "function_call":
+                        name = payload.get("name", "?")
+                        arguments = payload.get("arguments", "")
+                        pending_tool_calls.append({"name": name, "input": arguments})
+                    elif item_type == "function_call_output":
+                        raw_output = payload.get("output", "")
+                        output = _extract_function_output(raw_output)
+                        if output:
+                            pending_tool_results.append({"output": output})
+
+        # Flush any trailing tool data (e.g. incomplete / aborted turn)
+        flush_pending_assistant()
 
         return messages
 
