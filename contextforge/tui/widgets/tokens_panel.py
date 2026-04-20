@@ -129,7 +129,6 @@ class TokensPanel(ModalScreen):
 
     BINDINGS = [
         Binding("escape,q", "dismiss(None)", "Close"),
-        Binding("enter", "open_turn", "View turn"),
     ]
 
     DEFAULT_CSS = """
@@ -184,9 +183,8 @@ class TokensPanel(ModalScreen):
     def on_mount(self) -> None:
         self._load()
 
-    def action_open_turn(self) -> None:
-        table = self.query_one("#tokens-table", DataTable)
-        row_idx = table.cursor_row
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        row_idx = event.cursor_row
         if 0 <= row_idx < len(self._messages):
             self.app.push_screen(TurnDetailPanel(row_idx + 1, self._messages[row_idx]))
 
