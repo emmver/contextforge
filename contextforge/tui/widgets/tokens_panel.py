@@ -177,7 +177,7 @@ class TokensPanel(ModalScreen):
         with Vertical():
             yield Static("", id="tokens-header")
             yield Static("", id="tokens-stats")
-            yield DataTable(id="tokens-table", show_cursor=True, zebra_stripes=True)
+            yield DataTable(id="tokens-table", show_cursor=True, zebra_stripes=True, cursor_type="row")
             yield Static("ESC / q — close  │  Enter — view turn", id="tokens-footer")
 
     def on_mount(self) -> None:
@@ -284,6 +284,7 @@ class TokensPanel(ModalScreen):
                     t.content_preview,
                 )
 
-        # Highlight the heaviest row
+        # Highlight the heaviest row and ensure the table has focus
         if max_t:
             table.move_cursor(row=max_t.turn - 1)
+        table.focus()
