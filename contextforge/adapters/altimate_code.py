@@ -87,13 +87,19 @@ class AltimateCodeAdapter(ToolAdapter):
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
             # Join message + part to get full content
+            # Note: altimate-code stores data as JSON in 'data' column
             cur.execute(
                 """
-                SELECT m.role, p.type as part_type, p.content, m.time as ts
+                SELECT
+                    m.id,
+                    json_extract(m.data, '$.role') as role,
+                    m.time_created as ts,
+                    json_extract(p.data, '$.type') as part_type,
+                    json_extract(p.data, '$.text') as content
                 FROM message m
                 LEFT JOIN part p ON p.message_id = m.id
                 WHERE m.session_id = ?
-                ORDER BY m.time ASC, p.id ASC
+                ORDER BY m.time_created ASC, p.id ASC
                 """,
                 (session_id,),
             )
@@ -103,12 +109,13 @@ class AltimateCodeAdapter(ToolAdapter):
             return []
 
         messages: list[Message] = []
+        current_msg_id: str | None = None
         current_role: str | None = None
         current_parts: list[str] = []
         current_ts: datetime | None = None
 
         def flush():
-            nonlocal current_role, current_parts, current_ts
+            nonlocal current_msg_id, current_role, current_parts, current_ts
             if current_role and current_parts:
                 content = "\n".join(p for p in current_parts if p)
                 if content:
@@ -120,17 +127,21 @@ class AltimateCodeAdapter(ToolAdapter):
                             token_count=_count_tokens(content),
                         )
                     )
+            current_msg_id = None
             current_role = None
             current_parts = []
             current_ts = None
 
         for row in rows:
+            msg_id = row["id"]
             role = row["role"]
             if role not in ("user", "assistant"):
                 continue
 
-            if role != current_role:
+            # Flush when message ID changes (new message in the message table)
+            if msg_id != current_msg_id:
                 flush()
+                current_msg_id = msg_id
                 current_role = role
                 try:
                     current_ts = datetime.fromtimestamp(row["ts"] / 1000, tz=timezone.utc)
