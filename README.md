@@ -9,7 +9,7 @@ or across different tools.
 
 ## What it does
 
-- **Discovers sessions** from Claude Code (`~/.claude/projects/`), Claude Desktop, Codex (`~/.codex/state_5.sqlite`), Gemini (`~/.gemini/sessions/`), and altimate-code (`~/.local/share/altimate-code/`)
+- **Discovers sessions** from Claude Code (`~/.claude/projects/`), Claude Desktop, Codex (`~/.codex/state_5.sqlite`), Gemini (`~/.gemini/tmp/<project_hash>/chats/`), and altimate-code (`~/.local/share/altimate-code/`)
 - **Generates summaries** of what each session accomplished (with optional Claude API integration)
 - **Compacts context** intelligently, reducing multi-turn conversations to a token-efficient ContextBundle
 - **Transfers context** across tools and sessions (Claude Code → Codex, Codex → altimate-code, etc.)
@@ -139,7 +139,7 @@ The method is chosen automatically based on token count and whether a target ses
 | Claude Code (CLI) | `~/.claude/projects/` JSONL | `--system-prompt` / `--resume` |
 | Claude Desktop | `~/Library/Application Support/Claude/local-agent-mode-sessions/` | `--system-prompt` |
 | Codex | `~/.codex/state_5.sqlite` | `resume` / `fork` |
-| Gemini | `~/.gemini/sessions/` JSONL | `exec` / `resume` / `fork` |
+| Gemini | `~/.gemini/tmp/<project_hash>/chats/` JSON | New session / `/resume` |
 | altimate-code | `~/.local/share/altimate-code/opencode.db` | `run -s` / `import` |
 
 ## Session Summaries

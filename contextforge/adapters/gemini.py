@@ -9,102 +9,80 @@ from pathlib import Path
 from contextforge.adapters.base import ToolAdapter
 from contextforge.models.session import Message, Session
 
-_GEMINI_HISTORY_PATH = Path.home() / ".gemini" / "history.jsonl"
-_GEMINI_SESSIONS_DIR = Path.home() / ".gemini" / "sessions"
+_GEMINI_TMP_BASE = Path.home() / ".gemini" / "tmp"
 
 
 class GeminiAdapter(ToolAdapter):
     tool_name = "gemini"
-    default_paths = [_GEMINI_HISTORY_PATH, _GEMINI_SESSIONS_DIR]
+    default_paths = [_GEMINI_TMP_BASE]
 
     def discover_sessions(self) -> list[Session]:
-        """Discover Gemini sessions from history and sessions directory."""
+        """Discover Gemini sessions from ~/.gemini/tmp/<project_hash>/chats/."""
         sessions: list[Session] = []
 
-        # Try to load from sessions directory first
-        if _GEMINI_SESSIONS_DIR.exists():
-            sessions = self._scan_sessions_dir()
-
-        # Fall back to history.jsonl if no sessions directory
-        if not sessions and _GEMINI_HISTORY_PATH.exists():
-            sessions = self._from_history()
-
-        return sessions
-
-    def _scan_sessions_dir(self) -> list[Session]:
-        """Scan the Gemini sessions directory for session files."""
-        sessions: list[Session] = []
-
-        if not _GEMINI_SESSIONS_DIR.exists():
+        if not _GEMINI_TMP_BASE.exists():
             return sessions
 
-        for session_file in sorted(_GEMINI_SESSIONS_DIR.glob("*.jsonl")):
-            session_id = session_file.stem
-            mtime = session_file.stat().st_mtime
-            dt = datetime.fromtimestamp(mtime, tz=timezone.utc)
+        # Scan all project hash directories
+        for project_dir in _GEMINI_TMP_BASE.iterdir():
+            if not project_dir.is_dir():
+                continue
 
-            # Try to extract title from first few lines
-            title = None
-            try:
-                with session_file.open() as f:
-                    for line in f:
-                        try:
-                            entry = json.loads(line)
-                            if entry.get("type") == "user" and not title:
-                                content = entry.get("message", {}).get("content", "")
-                                if isinstance(content, str):
-                                    title = content[:100]  # First 100 chars as title
+            chats_dir = project_dir / "chats"
+            if not chats_dir.exists():
+                continue
+
+            # Scan for session JSON files in format: session-<timestamp>-<hash>.json
+            for session_file in sorted(chats_dir.glob("session-*.json")):
+                try:
+                    with session_file.open() as f:
+                        data = json.load(f)
+                except (json.JSONDecodeError, OSError):
+                    continue
+
+                session_id = data.get("sessionId")
+                if not session_id:
+                    continue
+
+                # Extract timestamps
+                start_time_str = data.get("startTime")
+                last_updated_str = data.get("lastUpdated")
+
+                created_at = None
+                updated_at = None
+
+                if start_time_str:
+                    try:
+                        created_at = datetime.fromisoformat(
+                            start_time_str.replace("Z", "+00:00")
+                        )
+                    except (ValueError, AttributeError):
+                        pass
+
+                if last_updated_str:
+                    try:
+                        updated_at = datetime.fromisoformat(
+                            last_updated_str.replace("Z", "+00:00")
+                        )
+                    except (ValueError, AttributeError):
+                        pass
+
+                if created_at is None:
+                    created_at = datetime.now(timezone.utc)
+                if updated_at is None:
+                    updated_at = created_at
+
+                # Extract title from first user message
+                title = None
+                messages = data.get("messages", [])
+                for msg in messages:
+                    if msg.get("type") == "user":
+                        content = msg.get("content", [])
+                        if isinstance(content, list) and content:
+                            text = content[0].get("text", "")
+                            if text:
+                                title = text[:100]
                                 break
-                        except json.JSONDecodeError:
-                            pass
-            except Exception:
-                pass
-
-            sessions.append(
-                Session(
-                    id=session_id,
-                    tool=self.tool_name,
-                    title=title,
-                    cwd=None,
-                    created_at=dt,
-                    updated_at=dt,
-                    raw_path=str(session_file),
-                    status="unknown",
-                )
-            )
-
-        return sessions
-
-    def _from_history(self) -> list[Session]:
-        """Load sessions from history.jsonl file."""
-        sessions: list[Session] = []
-        seen: set[str] = set()
-
-        if not _GEMINI_HISTORY_PATH.exists():
-            return sessions
-
-        with _GEMINI_HISTORY_PATH.open() as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-
-                session_id = entry.get("session_id") or entry.get("sessionId")
-                if not session_id or session_id in seen:
-                    continue
-                seen.add(session_id)
-
-                title = entry.get("title") or entry.get("display")
-                ts = entry.get("timestamp")
-
-                try:
-                    dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
-                except (ValueError, AttributeError, TypeError):
-                    dt = datetime.now(timezone.utc)
 
                 sessions.append(
                     Session(
@@ -112,9 +90,9 @@ class GeminiAdapter(ToolAdapter):
                         tool=self.tool_name,
                         title=title,
                         cwd=None,
-                        created_at=dt,
-                        updated_at=dt,
-                        raw_path=None,
+                        created_at=created_at,
+                        updated_at=updated_at,
+                        raw_path=str(session_file),
                         status="unknown",
                     )
                 )
@@ -122,61 +100,71 @@ class GeminiAdapter(ToolAdapter):
         return sessions
 
     def load_messages(self, session_id: str) -> list[Message]:
-        """Load messages for a given session ID."""
-        # Try to find session file
-        if _GEMINI_SESSIONS_DIR.exists():
-            session_file = _GEMINI_SESSIONS_DIR / f"{session_id}.jsonl"
-            if session_file.exists():
-                return self._parse_session_file(session_file)
+        """Load messages for a given session ID by scanning all projects."""
+        if not _GEMINI_TMP_BASE.exists():
+            return []
+
+        # Brute-force search across all projects to find the session
+        for project_dir in _GEMINI_TMP_BASE.iterdir():
+            if not project_dir.is_dir():
+                continue
+
+            chats_dir = project_dir / "chats"
+            if not chats_dir.exists():
+                continue
+
+            for session_file in chats_dir.glob("session-*.json"):
+                try:
+                    with session_file.open() as f:
+                        data = json.load(f)
+                except (json.JSONDecodeError, OSError):
+                    continue
+
+                if data.get("sessionId") == session_id:
+                    return self._parse_session_data(data)
 
         return []
 
-    def _parse_session_file(self, path: Path) -> list[Message]:
-        """Parse a Gemini session JSONL file."""
+    def _parse_session_data(self, data: dict) -> list[Message]:
+        """Parse Gemini session JSON object into Message list."""
         messages: list[Message] = []
 
-        try:
-            with path.open() as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
+        for msg in data.get("messages", []):
+            msg_type = msg.get("type", "")
+            if msg_type not in ("user", "gemini"):
+                continue
 
-                    entry_type = entry.get("type", "")
-                    if entry_type not in ("user", "assistant"):
-                        continue
+            # Extract content
+            content_raw = msg.get("content", "")
+            if isinstance(content_raw, list):
+                # User messages: content is list of {text: ...}
+                parts = []
+                for item in content_raw:
+                    if isinstance(item, dict) and "text" in item:
+                        parts.append(item["text"])
+                content = " ".join(parts)
+            else:
+                # Gemini messages: content is a string
+                content = str(content_raw)
 
-                    msg_data = entry.get("message", {})
-                    content = msg_data.get("content", "")
+            if not content or not content.strip():
+                continue
 
-                    if not content:
-                        continue
+            ts_str = msg.get("timestamp")
+            ts = None
+            if ts_str:
+                try:
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                except (ValueError, AttributeError):
+                    pass
 
-                    # Handle both string and list content formats
-                    if isinstance(content, list):
-                        content = " ".join(str(item) for item in content if item)
-
-                    ts_str = entry.get("timestamp")
-                    ts = None
-                    if ts_str:
-                        try:
-                            ts = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
-                        except (ValueError, AttributeError, TypeError):
-                            pass
-
-                    messages.append(
-                        Message(
-                            role="user" if entry_type == "user" else "assistant",
-                            content=str(content),
-                            timestamp=ts,
-                        )
-                    )
-        except Exception:
-            pass
+            messages.append(
+                Message(
+                    role="user" if msg_type == "user" else "assistant",
+                    content=content,
+                    timestamp=ts,
+                )
+            )
 
         return messages
 
@@ -191,13 +179,10 @@ class GeminiAdapter(ToolAdapter):
         safe_ctx = shlex.quote(context)
 
         if method == "resume" and target_session_id:
-            return f"gemini resume {target_session_id} {safe_ctx}"
+            return f"gemini /resume {target_session_id}"
 
-        if method == "fork" and target_session_id:
-            return f"gemini fork {target_session_id} {safe_ctx}"
-
-        # Default: new session
-        cmd = f"gemini exec {safe_ctx}"
+        # Default: new session with context injected via system prompt
+        cmd = f"gemini {safe_ctx}"
         if cwd:
             cmd = f"cd {shlex.quote(cwd)} && {cmd}"
         return cmd
