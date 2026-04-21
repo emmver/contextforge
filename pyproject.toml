@@ -21,6 +21,7 @@ classifiers = [
 requires-python = ">=3.13"
 dependencies = [
     "anthropic>=0.89.0",
+    "mcp>=1.9.0",
     "pydantic>=2.12.5",
     "rich>=14.3.3",
     "sqlite-utils>=3.39",
@@ -36,6 +37,7 @@ Repository = "https://github.com/emmver/contextforge"
 
 [project.scripts]
 cf = "contextforge.cli:app"
+cf-mcp = "contextforge.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]

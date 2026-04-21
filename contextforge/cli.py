@@ -579,6 +579,31 @@ def refresh(
 
 
 # ---------------------------------------------------------------------------
+# cf mcp
+# ---------------------------------------------------------------------------
+
+@app.command(name="mcp")
+def mcp_server():
+    """Start the ContextForge MCP server (stdio transport).
+
+    Exposes session data and token analysis as MCP tools so LLM agents
+    can query token usage, list sessions, and pull analytics directly.
+
+    Add to your Claude Code MCP config:
+      {
+        "mcpServers": {
+          "contextforge": {
+            "command": "cf",
+            "args": ["mcp"]
+          }
+        }
+      }
+    """
+    from contextforge.mcp_server import main as _run_mcp
+    _run_mcp()
+
+
+# ---------------------------------------------------------------------------
 # cf dashboard
 # ---------------------------------------------------------------------------
 
