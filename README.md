@@ -276,6 +276,111 @@ Press `t` on any session to open the transfer panel. Choose:
 - **Preview** — shows the exact shell command (no side effects)
 - **Execute** — builds the bundle and launches the target tool
 
+## MCP Server
+
+ContextForge ships a [Model Context Protocol](https://modelcontextprotocol.io) server that exposes session data and token analytics to LLM agents.
+
+### Setup
+
+```bash
+# Run directly (after installation)
+cf-mcp
+
+# From source
+uv run python -m contextforge.mcp_server
+```
+
+Register the server with your agentic tool of choice:
+
+#### Claude Code
+
+Add to `~/.claude/claude_desktop_config.json` (global) or `.claude/mcp.json` (project):
+```json
+{
+  "mcpServers": {
+    "contextforge": {
+      "command": "cf-mcp"
+    }
+  }
+}
+```
+
+#### Cursor
+
+Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
+```json
+{
+  "mcpServers": {
+    "contextforge": {
+      "command": "cf-mcp"
+    }
+  }
+}
+```
+
+Restart Cursor fully after saving.
+
+#### Codex CLI
+
+Add to `~/.codex/config.toml` (global) or `.codex/config.toml` (project):
+```toml
+[mcp_servers.contextforge]
+command = "cf-mcp"
+enabled = true
+```
+
+#### Gemini CLI
+
+Add to `~/.gemini/settings.json` (global) or `.gemini/settings.json` (project):
+```json
+{
+  "mcpServers": {
+    "contextforge": {
+      "command": "cf-mcp"
+    }
+  }
+}
+```
+
+#### Antigravity
+
+Add to `mcp_servers.json` in your project root:
+```json
+{
+  "servers": [
+    {
+      "name": "contextforge",
+      "transport": "stdio",
+      "command": "cf-mcp",
+      "enabled": true
+    }
+  ]
+}
+```
+
+### Tools
+
+| Tool | Description |
+|---|---|
+| `list_sessions` | List indexed sessions; filter by `tool`, limit up to 200 |
+| `get_session` | Full detail for a single session by ID |
+| `get_session_tokens` | Per-turn token breakdown; optionally return only the N heaviest turns |
+| `get_token_analytics` | Aggregated token stats across all sessions for a time window |
+| `get_activity_timeline` | Session count and token usage bucketed over time |
+| `get_top_projects` | Top projects by session count within a time window |
+| `compare_sessions` | Side-by-side token comparison for 2–10 sessions |
+
+All tools are **read-only** and accept a `window` parameter of `7d`, `30d`, `6m`, or `1y` where applicable.
+
+### Example usage
+
+```
+# In Claude Code with the MCP server registered:
+"Show me token usage for all my Claude Code sessions this month"
+"Compare sessions <id1> and <id2> side by side"
+"What are my top 5 projects by session count?"
+```
+
 ## Troubleshooting
 
 ### `command not found: cf`
