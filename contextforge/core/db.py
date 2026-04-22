@@ -115,14 +115,24 @@ def get_sessions(
     db: sqlite_utils.Database,
     tool: str | None = None,
     limit: int = 200,
+    offset: int = 0,
+    since_ms: int | None = None,
 ) -> list[dict]:
-    where = "tool = ?" if tool else None
-    params = [tool] if tool else []
+    clauses: list[str] = []
+    params: list = []
+    if tool:
+        clauses.append("tool = ?")
+        params.append(tool)
+    if since_ms is not None:
+        clauses.append("updated_at >= ?")
+        params.append(since_ms)
+    where = " AND ".join(clauses) if clauses else None
     rows = db["sessions"].rows_where(
         where,
         params,
         order_by="updated_at desc",
         limit=limit,
+        offset=offset,
     )
     return list(rows)
 

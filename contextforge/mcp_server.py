@@ -14,11 +14,15 @@ mcp = FastMCP(
     "contextforge",
     instructions=(
         "ContextForge provides read-only access to indexed agentic-tool sessions "
-        "and their token usage. Start with list_sessions to discover what's available, "
-        "then use get_session_tokens for per-turn breakdown or get_token_analytics "
-        "for aggregated stats across all tools."
+        "and their token usage. Start with list_sessions to discover what's available "
+        "(supports pagination via offset/limit and date filtering via window). "
+        "Use get_session_tokens for token stats — pass include_turns=True with "
+        "turns_limit/turns_offset to page through per-turn data without blowing up "
+        "the context window. Use get_token_analytics for aggregated stats across all tools."
     ),
 )
+
+_VALID_WINDOWS = {"7d", "30d", "6m", "1y"}
 
 
 def _db():
@@ -26,26 +30,67 @@ def _db():
     return db_module.get_db(cfg.db_path)
 
 
+def _short_cwd(cwd: str) -> str:
+    """Return a short project label from a full cwd path.
+
+    Returns the last path component, or '~' for the user home directory,
+    or '' for empty paths.
+    """
+    if not cwd:
+        return ""
+    parts = [p for p in cwd.replace("\\", "/").split("/") if p]
+    if not parts:
+        return ""
+    # Detect home directory: last part is a username-like segment with no parent project
+    # If the path ends at /Users/<name> or /home/<name>, show '~'
+    if len(parts) >= 2 and parts[-2] in ("Users", "home"):
+        return "~"
+    return parts[-1]
+
+
+def _validate_window(window: str) -> str:
+    if window not in _VALID_WINDOWS:
+        raise ValueError(
+            f"Invalid window {window!r}. Must be one of: {', '.join(sorted(_VALID_WINDOWS))}"
+        )
+    return window
+
+
 @mcp.tool()
-def list_sessions(tool: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+def list_sessions(
+    tool: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    window: str | None = None,
+) -> list[dict[str, Any]]:
     """List indexed sessions with basic token summaries.
+
+    Supports pagination via offset/limit and optional date filtering via window.
 
     Args:
         tool: Filter by tool name (claude_code, codex, gemini, etc.). Omit for all tools.
-        limit: Maximum sessions to return (default 50, max 200).
+        limit: Page size (default 50, max 200).
+        offset: Number of sessions to skip for pagination (default 0).
+        window: Optional time window to filter by recency — one of "7d", "30d", "6m", "1y".
     """
+    since_ms: int | None = None
+    if window is not None:
+        _validate_window(window)
+        since_ms = analytics_module._window_start_ms(window)
+
     db = _db()
-    rows = db_module.get_sessions(db, tool=tool, limit=min(limit, 200))
+    rows = db_module.get_sessions(
+        db, tool=tool, limit=min(limit, 200), offset=offset, since_ms=since_ms
+    )
     return [
         {
             "id": r["id"],
             "tool": r["tool"],
-            "title": r.get("title") or "",
-            "cwd": r.get("cwd") or "",
+            "title": (r.get("title") or "")[:100],
+            "cwd": _short_cwd(r.get("cwd") or ""),
             "token_count": r.get("token_count") or 0,
             "updated_at": r.get("updated_at"),
             "status": r.get("status") or "",
-            "summary": r.get("summary") or "",
         }
         for r in rows
     ]
@@ -53,41 +98,60 @@ def list_sessions(tool: str | None = None, limit: int = 50) -> list[dict[str, An
 
 @mcp.tool()
 def get_session(session_id: str) -> dict[str, Any] | None:
-    """Get full details for a single session by ID.
+    """Get details for a single session by ID.
 
     Args:
         session_id: The exact session ID from list_sessions.
     """
     db = _db()
     row = db_module.get_session(db, session_id)
-    return dict(row) if row else None
+    if row is None:
+        return None
+    return {
+        "id": row["id"],
+        "tool": row["tool"],
+        "title": (row.get("title") or "")[:100],
+        "cwd": row.get("cwd") or "",
+        "project": _short_cwd(row.get("cwd") or ""),
+        "token_count": row.get("token_count") or 0,
+        "status": row.get("status") or "",
+        "summary": (row.get("summary") or "")[:300],
+        "created_at": row.get("created_at"),
+        "updated_at": row.get("updated_at"),
+        "tags": row.get("tags") or "[]",
+    }
 
 
 @mcp.tool()
-def get_session_tokens(session_id: str, top: int = 0) -> dict[str, Any] | None:
-    """Get per-turn token breakdown for a session.
+def get_session_tokens(
+    session_id: str,
+    include_turns: bool = False,
+    turns_limit: int = 100,
+    turns_offset: int = 0,
+    top: int = 0,
+) -> dict[str, Any] | None:
+    """Get token breakdown for a session.
 
-    Returns total tokens, per-role totals and averages, and a list of turns
-    with individual counts for text, tool calls, and tool results.
+    By default returns only summary statistics (cheap). Set include_turns=True
+    to also page through per-turn data using turns_limit and turns_offset.
 
     Args:
         session_id: The session ID.
-        top: If > 0, return only the N heaviest turns (sorted by turn number).
+        include_turns: If True, include per-turn token counts. Default False.
+        turns_limit: Max turns to return per page when include_turns=True (default 100).
+        turns_offset: Turn index to start from for pagination (default 0).
+        top: If > 0, return the N heaviest turns instead of sequential pagination.
+            Overrides turns_offset when set.
     """
     db = _db()
     report = analyze_tokens(db, session_id)
     if report is None:
         return None
 
-    turns = report.turns
-    if top > 0:
-        turns = sorted(turns, key=lambda t: t.tokens, reverse=True)[:top]
-        turns = sorted(turns, key=lambda t: t.turn)
-
-    return {
+    result: dict[str, Any] = {
         "session_id": report.session_id,
         "tool": report.tool,
-        "title": report.title,
+        "title": report.title[:100],
         "total_tokens": report.total,
         "user_tokens": report.user_total,
         "assistant_tokens": report.assistant_total,
@@ -102,12 +166,20 @@ def get_session_tokens(session_id: str, top: int = 0) -> dict[str, Any] | None:
                 "turn": report.max_turn.turn,
                 "role": report.max_turn.role,
                 "tokens": report.max_turn.tokens,
-                "preview": report.max_turn.content_preview,
             }
             if report.max_turn
             else None
         ),
-        "turns": [
+    }
+
+    if include_turns:
+        turns = report.turns
+        if top > 0:
+            turns = sorted(turns, key=lambda t: t.tokens, reverse=True)[:top]
+            turns = sorted(turns, key=lambda t: t.turn)
+        else:
+            turns = turns[turns_offset: turns_offset + turns_limit]
+        result["turns"] = [
             {
                 "turn": t.turn,
                 "role": t.role,
@@ -115,12 +187,25 @@ def get_session_tokens(session_id: str, top: int = 0) -> dict[str, Any] | None:
                 "text_tokens": t.text_tokens,
                 "tool_call_tokens": t.tool_call_tokens,
                 "tool_result_tokens": t.tool_result_tokens,
-                "cumulative": t.cumulative,
-                "preview": t.content_preview,
             }
             for t in turns
-        ],
-    }
+        ]
+        if top > 0:
+            result["turns_pagination"] = {
+                "mode": "top",
+                "n": top,
+                "total": report.turn_count,
+            }
+        else:
+            result["turns_pagination"] = {
+                "mode": "sequential",
+                "offset": turns_offset,
+                "limit": turns_limit,
+                "total": report.turn_count,
+                "has_more": (turns_offset + turns_limit) < report.turn_count,
+            }
+
+    return result
 
 
 @mcp.tool()
@@ -130,6 +215,7 @@ def get_token_analytics(window: str = "30d") -> dict[str, Any]:
     Args:
         window: Time window — one of "7d", "30d", "6m", "1y" (default "30d").
     """
+    _validate_window(window)
     db = _db()
     overview = analytics_module.get_overview(db, window=window)
     return {
@@ -155,6 +241,7 @@ def get_activity_timeline(window: str = "30d") -> list[dict[str, Any]]:
     Args:
         window: Time window — one of "7d", "30d", "6m", "1y" (default "30d").
     """
+    _validate_window(window)
     db = _db()
     buckets = analytics_module.get_activity_over_time(db, window=window)
     return [
@@ -171,6 +258,7 @@ def get_top_projects(window: str = "30d", top_n: int = 5) -> list[dict[str, Any]
         window: Time window — one of "7d", "30d", "6m", "1y" (default "30d").
         top_n: Number of top projects to return (default 5).
     """
+    _validate_window(window)
     db = _db()
     projects = analytics_module.get_top_projects(db, window=window, top_n=top_n)
     return [{"project": p.project, "session_count": p.count} for p in projects]
@@ -183,7 +271,7 @@ def compare_sessions(session_ids: list[str]) -> list[dict[str, Any]]:
     Returns one entry per session with key metrics, sorted by total tokens descending.
 
     Args:
-        session_ids: List of session IDs to compare (2–10 sessions recommended).
+        session_ids: List of session IDs to compare.
     """
     db = _db()
     results: list[dict[str, Any]] = []
@@ -195,7 +283,7 @@ def compare_sessions(session_ids: list[str]) -> list[dict[str, Any]]:
         results.append({
             "session_id": sid,
             "tool": report.tool,
-            "title": report.title,
+            "title": report.title[:100],
             "total_tokens": report.total,
             "turn_count": report.turn_count,
             "user_tokens": report.user_total,
