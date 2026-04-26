@@ -13,6 +13,42 @@ from textual.widgets import DataTable, Static
 
 from contextforge.models.session import Message
 
+# ── Constants ─────────────────────────────────────────────────────────────────
+
+_CONTEXT_WINDOW = 200_000   # reference context window (Claude Sonnet)
+_EIGHTHS = " ▏▎▍▌▋▊▉█"
+
+_TOOL_LABELS = {
+    "claude_code":    "◆ Claude Code",
+    "codex":          "⬡ Codex",
+    "altimate_code":  "⚡ Altimate",
+    "claude_desktop": "◇ Claude Desktop",
+    "gemini":         "✦ Gemini",
+}
+
+
+def _frac_bar(fraction: float, width: int = 22) -> str:
+    """Smooth fractional progress bar using Unicode block elements."""
+    fraction = max(0.0, min(1.0, fraction))
+    total_eighths = round(fraction * width * 8)
+    full = min(total_eighths // 8, width)
+    remainder = total_eighths % 8
+    bar = "█" * full
+    if full < width and remainder:
+        bar += _EIGHTHS[remainder]
+    return bar.ljust(width, "░")
+
+
+def _fmt(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n // 1_000}k"
+    return str(n)
+
+
+# ── TurnDetailPanel ───────────────────────────────────────────────────────────
+
 
 class TurnDetailPanel(ModalScreen):
     """Modal showing the full content of a single turn."""
@@ -42,27 +78,6 @@ class TurnDetailPanel(ModalScreen):
         height: 1fr;
         padding: 0 1;
     }
-    TurnDetailPanel .section-label {
-        color: $text-muted;
-        text-style: bold;
-        margin-top: 1;
-    }
-    TurnDetailPanel .content-block {
-        color: $text;
-        margin-bottom: 1;
-    }
-    TurnDetailPanel .tool-name {
-        color: $warning;
-        text-style: bold;
-    }
-    TurnDetailPanel .tool-input {
-        color: $text-muted;
-        margin-left: 2;
-    }
-    TurnDetailPanel .tool-output {
-        color: $success;
-        margin-left: 2;
-    }
     TurnDetailPanel #turn-footer {
         height: 1;
         color: $text-disabled;
@@ -80,28 +95,34 @@ class TurnDetailPanel(ModalScreen):
             yield Static("", id="turn-header")
             with ScrollableContainer():
                 yield Static("", id="turn-body")
-            yield Static("ESC / q — close", id="turn-footer")
+            yield Static("[dim]ESC / q — close[/dim]", id="turn-footer")
 
     def on_mount(self) -> None:
         msg = self._msg
         role_color = "cyan" if msg.role == "user" else "green"
+        role_icon  = "👤" if msg.role == "user" else "🤖"
+
+        # Context pressure for this single turn
+        pct = int((msg.token_count or 0) / _CONTEXT_WINDOW * 100)
+        pressure_color = "red" if pct >= 80 else ("yellow" if pct >= 40 else "green")
 
         self.query_one("#turn-header", Static).update(
             f"[bold]Turn #{self._turn_num}[/bold]  "
-            f"[{role_color}]{msg.role}[/{role_color}]  "
-            f"[dim]{(msg.token_count or 0):,} tokens[/dim]"
-            + (f"  [yellow]{len(msg.tool_calls)} call(s)[/yellow]" if msg.tool_calls else "")
-            + (f"  [magenta]{len(msg.tool_results)} result(s)[/magenta]" if msg.tool_results else "")
+            f"[{role_color}]{role_icon} {msg.role}[/{role_color}]  "
+            f"[bold]{(msg.token_count or 0):,}[/bold] [dim]tokens[/dim]  "
+            f"[{pressure_color}]{pct}% of context[/{pressure_color}]"
+            + (f"   [yellow]⚙ {len(msg.tool_calls)} call{'s' if len(msg.tool_calls) != 1 else ''}[/yellow]"
+               if msg.tool_calls else "")
+            + (f"  [magenta]⇥ {len(msg.tool_results)} result{'s' if len(msg.tool_results) != 1 else ''}[/magenta]"
+               if msg.tool_results else "")
         )
 
         body = Text()
 
-        # ── Text content ────────────────────────────────────────────────────
         if msg.content:
             body.append("── Content ──\n", style="bold dim")
             body.append(msg.content + "\n")
 
-        # ── Tool calls ──────────────────────────────────────────────────────
         if msg.tool_calls:
             body.append("\n── Tool Calls ──\n", style="bold dim")
             for i, tc in enumerate(msg.tool_calls, 1):
@@ -111,20 +132,22 @@ class TurnDetailPanel(ModalScreen):
                     formatted = json.dumps(json.loads(raw_input), indent=2)
                 except (json.JSONDecodeError, TypeError):
                     formatted = raw_input if isinstance(raw_input, str) else str(raw_input)
-                body.append(f"{i}. {name}\n", style="bold yellow")
+                body.append(f"⚙ {i}. {name}\n", style="bold yellow")
                 body.append(formatted + "\n", style="dim")
 
-        # ── Tool results ────────────────────────────────────────────────────
         if msg.tool_results:
             body.append("\n── Tool Results ──\n", style="bold dim")
             for i, tr in enumerate(msg.tool_results, 1):
                 output = tr.get("output", "")
                 if not isinstance(output, str):
                     output = str(output)
-                body.append(f"Result {i}\n", style="bold green")
+                body.append(f"⇥ Result {i}\n", style="bold green")
                 body.append(output + "\n", style="dim")
 
         self.query_one("#turn-body", Static).update(body)
+
+
+# ── TokensPanel ───────────────────────────────────────────────────────────────
 
 
 class TokensPanel(ModalScreen):
@@ -139,9 +162,9 @@ class TokensPanel(ModalScreen):
         align: center middle;
     }
     TokensPanel > Vertical {
-        width: 90%;
-        height: 85%;
-        border: thick $primary;
+        width: 92%;
+        height: 88%;
+        border: thick $accent;
         background: $surface;
         padding: 0 1;
     }
@@ -149,13 +172,20 @@ class TokensPanel(ModalScreen):
         height: auto;
         padding: 1 1 0 1;
         color: $text;
-    }
-    TokensPanel #tokens-stats {
-        height: auto;
-        padding: 0 1 1 1;
-        color: $text-muted;
         border-bottom: solid $primary-background-lighten-1;
         margin-bottom: 1;
+    }
+    TokensPanel #tokens-summary {
+        height: auto;
+        padding: 0 1;
+        color: $text-muted;
+        margin-bottom: 0;
+    }
+    TokensPanel #tokens-insights {
+        height: auto;
+        padding: 0 1 1 1;
+        margin-bottom: 1;
+        border-bottom: solid $primary-background-lighten-1;
     }
     TokensPanel DataTable {
         height: 1fr;
@@ -168,7 +198,7 @@ class TokensPanel(ModalScreen):
     }
     """
 
-    _BAR_MAX = 24
+    _BAR_WIDTH = 20
 
     def __init__(self, session_id: str, db_path: Path) -> None:
         super().__init__()
@@ -179,9 +209,10 @@ class TokensPanel(ModalScreen):
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static("", id="tokens-header")
-            yield Static("", id="tokens-stats")
+            yield Static("", id="tokens-summary")
+            yield Static("", id="tokens-insights")
             yield DataTable(id="tokens-table", show_cursor=True, zebra_stripes=True, cursor_type="row")
-            yield Static("ESC / q — close  │  Enter — view turn", id="tokens-footer")
+            yield Static("[dim]ESC/q[/dim] close   [dim]Enter[/dim] view turn", id="tokens-footer")
 
     def on_mount(self) -> None:
         self._load()
@@ -196,10 +227,9 @@ class TokensPanel(ModalScreen):
         from contextforge.core.db import get_db, get_session
         from contextforge.core.token_analyzer import analyze_tokens
 
-        db = get_db(self._db_path)
-        report = analyze_tokens(db, self._session_id)
+        db      = get_db(self._db_path)
+        report  = analyze_tokens(db, self._session_id)
 
-        # Load messages so TurnDetailPanel can show full content
         row = get_session(db, self._session_id)
         if row is not None:
             try:
@@ -208,41 +238,99 @@ class TokensPanel(ModalScreen):
             except Exception:
                 self._messages = []
 
-        header = self.query_one("#tokens-header", Static)
-        stats = self.query_one("#tokens-stats", Static)
-        table = self.query_one("#tokens-table", DataTable)
+        header   = self.query_one("#tokens-header",   Static)
+        summary  = self.query_one("#tokens-summary",  Static)
+        insights = self.query_one("#tokens-insights", Static)
+        table    = self.query_one("#tokens-table",    DataTable)
 
         if report is None or not report.turns:
             header.update("[bold red]No token data available.[/bold red]")
             return
 
-        # ── Header ──────────────────────────────────────────────────────────
+        # ── Header ────────────────────────────────────────────────────────
+        tool_label = _TOOL_LABELS.get(report.tool, report.tool)
         header.update(
-            f"[bold accent]Token Analysis[/bold accent]  "
-            f"[dim]{report.title[:60]}[/dim]  "
-            f"[dim]{report.tool}[/dim]"
+            f"[bold]# Token Analysis[/bold]   "
+            f"[dim]{report.title[:55]}[/dim]   "
+            f"[dim]{tool_label}[/dim]"
         )
 
-        # ── Stats bar ───────────────────────────────────────────────────────
+        # ── Summary ───────────────────────────────────────────────────────
         max_t = report.max_turn
-        tool_summary = ""
+        line1 = (
+            f"  [bold]{report.total:,}[/bold] total   "
+            f"[cyan]{report.user_total:,}[/cyan] user (avg [cyan]{report.avg_user:,.0f}[/cyan])   "
+            f"[green]{report.assistant_total:,}[/green] asst (avg [green]{report.avg_assistant:,.0f}[/green])   "
+            f"[dim]{report.turn_count} turns[/dim]"
+        )
+        line2_parts = []
         if report.has_tool_data:
-            tool_summary = (
-                f"  │  [yellow]Calls {report.tool_call_total:,}[/yellow]"
-                f"  [magenta]Results {report.tool_result_total:,}[/magenta]"
+            line2_parts.append(
+                f"  [yellow]⚙ calls {report.tool_call_total:,}[/yellow]   "
+                f"[magenta]⇥ results {report.tool_result_total:,}[/magenta]"
             )
-        stats.update(
-            f"Total [bold]{report.total:,}[/bold] tokens  │  "
-            f"[cyan]User {report.user_total:,}[/cyan] (avg {report.avg_user:,.0f})  │  "
-            f"[green]Asst {report.assistant_total:,}[/green] (avg {report.avg_assistant:,.0f})  │  "
-            f"{report.turn_count} turns"
-            + tool_summary
-            + (f"  │  Heaviest: turn #{max_t.turn} "
-               f"[bold]{max_t.tokens:,}[/bold] tok [{max_t.role}]"
-               if max_t else "")
+        if max_t:
+            line2_parts.append(
+                f"   [dim]heaviest: turn [/dim][bold]#{max_t.turn}[/bold]"
+                f"[dim] ({max_t.tokens:,} tok, {max_t.role})[/dim]"
+            )
+        summary.update(line1 + ("\n" + "".join(line2_parts) if line2_parts else ""))
+
+        # ── Insights ──────────────────────────────────────────────────────
+        insight_lines: list[str] = []
+
+        # Context pressure gauge
+        ctx_pct  = report.total / _CONTEXT_WINDOW
+        ctx_bar  = _frac_bar(ctx_pct, 22)
+        ctx_val  = int(ctx_pct * 100)
+        ctx_col  = "red" if ctx_val >= 80 else ("yellow" if ctx_val >= 40 else "green")
+        insight_lines.append(
+            f"  [dim]Context   [/dim][{ctx_col}]{ctx_bar}[/{ctx_col}]"
+            f"  [{ctx_col}]{ctx_val}%[/{ctx_col}]  [dim]of ~200k window[/dim]"
         )
 
-        # ── Table ────────────────────────────────────────────────────────────
+        # User / Assistant split bar
+        if report.total > 0:
+            u_frac   = report.user_total / report.total
+            a_frac   = 1.0 - u_frac
+            u_chars  = round(u_frac * 22)
+            a_chars  = 22 - u_chars
+            split_bar = f"[cyan]{'█' * u_chars}[/cyan][green]{'█' * a_chars}[/green]"
+            insight_lines.append(
+                f"  [dim]U/A split [/dim]{split_bar}"
+                f"  [cyan]{int(u_frac * 100)}% user[/cyan]  "
+                f"[green]{int(a_frac * 100)}% asst[/green]"
+            )
+
+        # Tool overhead
+        if report.has_tool_data and report.total > 0:
+            tool_total = report.tool_call_total + report.tool_result_total
+            t_frac = tool_total / report.total
+            t_bar  = _frac_bar(t_frac, 22)
+            t_col  = "yellow" if t_frac >= 0.5 else "dim"
+            insight_lines.append(
+                f"  [dim]Tool load [/dim][{t_col}]{t_bar}[/{t_col}]"
+                f"  [{t_col}]{int(t_frac * 100)}%[/{t_col}]  [dim]of tokens in tool calls/results[/dim]"
+            )
+
+        # Conversation shape: are later turns heavier than earlier?
+        if len(report.turns) >= 4:
+            half = len(report.turns) // 2
+            first_avg = sum(t.tokens for t in report.turns[:half]) / half
+            last_avg  = sum(t.tokens for t in report.turns[half:]) / half
+            if first_avg > 0:
+                ratio = last_avg / first_avg
+                if ratio >= 1.3:
+                    shape = "[yellow]↗ growing[/yellow]  [dim](context is building up)[/dim]"
+                elif ratio <= 0.7:
+                    shape = "[green]↘ tapering[/green]  [dim](turns getting shorter)[/dim]"
+                else:
+                    shape = "[dim]→ uniform  (turns are evenly sized)[/dim]"
+                insight_lines.append(f"  [dim]Shape     [/dim]{shape}")
+
+        insights.update("\n".join(insight_lines))
+
+        # ── Table ─────────────────────────────────────────────────────────
         if report.has_tool_data:
             table.add_columns("#", "Role", "Tokens", "Text", "Calls", "Results", "Cumul.", "Bar", "Preview")
         else:
@@ -251,43 +339,34 @@ class TokensPanel(ModalScreen):
         max_tokens = max(t.tokens for t in report.turns)
 
         for t in report.turns:
-            bar_len = max(1, int(t.tokens / max_tokens * self._BAR_MAX))
+            bar_str = _frac_bar(t.tokens / max_tokens if max_tokens else 0, self._BAR_WIDTH)
 
             if t.role == "user":
-                role_str = "[cyan]user[/cyan]"
-                bar_str = f"[cyan]{'█' * bar_len}[/cyan]"
+                role_str = "[cyan]👤 user[/cyan]"
+                bar_str  = f"[cyan]{bar_str}[/cyan]"
             elif t.role == "assistant":
-                role_str = "[green]asst[/green]"
-                bar_str = f"[green]{'█' * bar_len}[/green]"
+                role_str = "[green]🤖 asst[/green]"
+                bar_str  = f"[green]{bar_str}[/green]"
             else:
                 role_str = f"[dim]{t.role}[/dim]"
-                bar_str = f"[dim]{'█' * bar_len}[/dim]"
+                bar_str  = f"[dim]{bar_str}[/dim]"
+
+            tok_str = f"[bold]{t.tokens:,}[/bold]" if max_tokens and t.tokens == max_tokens else f"{t.tokens:,}"
 
             if report.has_tool_data:
-                calls_str = f"[yellow]{t.tool_call_tokens:,}[/yellow]" if t.tool_call_tokens else "[dim]—[/dim]"
+                calls_str   = f"[yellow]{t.tool_call_tokens:,}[/yellow]"   if t.tool_call_tokens   else "[dim]—[/dim]"
                 results_str = f"[magenta]{t.tool_result_tokens:,}[/magenta]" if t.tool_result_tokens else "[dim]—[/dim]"
                 table.add_row(
-                    str(t.turn),
-                    role_str,
-                    f"{t.tokens:,}",
-                    f"{t.text_tokens:,}",
-                    calls_str,
-                    results_str,
-                    f"{t.cumulative:,}",
-                    bar_str,
-                    t.content_preview,
+                    str(t.turn), role_str, tok_str,
+                    f"{t.text_tokens:,}", calls_str, results_str,
+                    f"{t.cumulative:,}", bar_str, t.content_preview,
                 )
             else:
                 table.add_row(
-                    str(t.turn),
-                    role_str,
-                    f"{t.tokens:,}",
-                    f"{t.cumulative:,}",
-                    bar_str,
-                    t.content_preview,
+                    str(t.turn), role_str, tok_str,
+                    f"{t.cumulative:,}", bar_str, t.content_preview,
                 )
 
-        # Highlight the heaviest row and ensure the table has focus
         if max_t:
             table.move_cursor(row=max_t.turn - 1)
         table.focus()
