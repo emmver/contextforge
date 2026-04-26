@@ -64,23 +64,24 @@ class StatusBar(Widget):
 
         tool_parts = []
         labels = {
-            "claude_code": "CC",
-            "codex": "Codex",
-            "altimate_code": "Alt",
-            "claude_desktop": "Desktop",
+            "claude_code":    "◆ CC",
+            "codex":          "⬡ Codex",
+            "altimate_code":  "⚡ Alt",
+            "claude_desktop": "◇ Desktop",
+            "gemini":         "✦ Gemini",
         }
         for tool, label in labels.items():
             n = counts.get(tool, 0)
             if n:
-                tool_parts.append(f"{label}:{n}")
+                tool_parts.append(f"{label} {n}")
 
         tok_str = _fmt_tokens(total_tokens)
         self.query_one("#status-counts").update(
-            f"Sessions — {' │ '.join(tool_parts)} │ Total:{len(rows)} │ {tok_str}"
+            f"  {' [dim]│[/dim] '.join(tool_parts)}  [dim]│[/dim]  [bold]{len(rows)}[/bold] sessions  [dim]│[/dim]  {tok_str}"
         )
 
         now = datetime.now(timezone.utc).strftime("%H:%M:%S")
-        self.query_one("#status-scan-time").update(f"Updated {now}")
+        self.query_one("#status-scan-time").update(f"[dim]⟳ {now}[/dim]")
 
     def set_filter_indicator(
         self, text: str, tool: str | None, match_count: int
@@ -94,9 +95,9 @@ class StatusBar(Widget):
         if text:
             parts.append(f'"{text}"')
         if tool:
-            short = {"claude_code": "CC", "codex": "Codex", "altimate_code": "Alt", "claude_desktop": "Desktop"}.get(tool, tool)
+            short = {"claude_code": "◆ CC", "codex": "⬡ Codex", "altimate_code": "⚡ Alt", "claude_desktop": "◇ Desktop", "gemini": "✦ Gemini"}.get(tool, tool)
             parts.append(short)
 
         self.query_one("#status-filter", Static).update(
-            f"[yellow]Filter: {' + '.join(parts)} ({match_count} matches)[/yellow]"
+            f"[yellow]⌕ {' + '.join(parts)}  [dim]({match_count} matches)[/dim][/yellow]"
         )

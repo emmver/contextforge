@@ -11,6 +11,33 @@ Screen {
     layout: horizontal;
 }
 
+/* ── Header ─────────────────────────────────────────────── */
+
+Header {
+    background: $primary-background-darken-1;
+    color: $accent;
+    text-style: bold;
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+
+Footer {
+    background: $primary-background-darken-2;
+}
+
+/* ── DataTable global tweaks ─────────────────────────────── */
+
+DataTable > .datatable--header {
+    text-style: bold;
+    color: $accent;
+    background: $primary-background-darken-1;
+}
+
+DataTable > .datatable--cursor {
+    background: $primary;
+    color: $text;
+}
+
 /* ── Transfer modal ─────────────────────────────────────── */
 
 TransferPanel {
@@ -21,7 +48,7 @@ TransferPanel > Vertical {
     width: 64;
     height: auto;
     max-height: 38;
-    border: thick $primary;
+    border: thick $accent;
     background: $surface;
     padding: 1 2;
 }
@@ -30,6 +57,8 @@ TransferPanel > Vertical {
     text-style: bold;
     color: $accent;
     margin-bottom: 1;
+    padding-bottom: 1;
+    border-bottom: solid $primary-background-lighten-1;
 }
 
 .section-label {
@@ -47,4 +76,10 @@ TransferPanel > Vertical {
 
 #btn-row Button {
     margin-left: 1;
+}
+
+/* ── Notifications ──────────────────────────────────────── */
+
+Toast {
+    border: tall $accent;
 }

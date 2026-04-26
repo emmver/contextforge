@@ -19,17 +19,18 @@ class ContextForgeApp(App):
     """ContextForge dashboard — manage agentic CLI sessions."""
 
     TITLE = "ContextForge"
+    SUB_TITLE = "agentic session manager"
     CSS_PATH = "styles.tcss"
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
-        Binding("r", "rescan", "Rescan"),
-        Binding("s", "summarize", "Summarize"),
-        Binding("t", "transfer", "Transfer"),
-        Binding("c", "compact", "Compact"),
-        Binding("x", "tokens", "Tokens"),
-        Binding("a", "analytics", "Analytics"),
-        Binding("/", "filter", "Filter"),
+        Binding("r", "rescan", "⟳ Rescan"),
+        Binding("s", "summarize", "✎ Summarize"),
+        Binding("t", "transfer", "⇄ Transfer"),
+        Binding("c", "compact", "⊛ Compact"),
+        Binding("x", "tokens", "# Tokens"),
+        Binding("a", "analytics", "▤ Analytics"),
+        Binding("/", "filter", "⌕ Filter"),
     ]
 
     def __init__(self, db_path: Path | None = None) -> None:

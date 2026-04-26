@@ -12,31 +12,36 @@ from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Button, DataTable, Input, Label
 
-TOOL_EMOJI = {
-    "claude_code": "🔵",
-    "codex": "🟢",
-    "altimate_code": "🟣",
-    "claude_desktop": "🟡",
+# Unicode symbols that evoke each tool brand (terminals can't render images)
+TOOL_ICON = {
+    "claude_code":    "◆",   # Anthropic — solid diamond
+    "codex":          "⬡",   # OpenAI — hexagon
+    "altimate_code":  "⚡",   # Altimate — lightning
+    "claude_desktop": "◇",   # Claude Desktop — open diamond
+    "gemini":         "✦",   # Google Gemini — four-pointed star
 }
 
 TOOL_MARKUP = {
-    "claude_code":   "[cyan]🔵 CC[/cyan]",
-    "codex":         "[green]🟢 Codex[/green]",
-    "altimate_code": "[magenta]🟣 Alt[/magenta]",
-    "claude_desktop": "[yellow]🟡 Desktop[/yellow]",
+    "claude_code":    "[cyan]◆ Claude[/cyan]",
+    "codex":          "[green]⬡ Codex[/green]",
+    "altimate_code":  "[magenta]⚡ Alt[/magenta]",
+    "claude_desktop": "[yellow]◇ Desktop[/yellow]",
+    "gemini":         "[blue]✦ Gemini[/blue]",
 }
 
 TOOL_DISPLAY = {
-    "claude_code": "CC",
-    "codex": "Codex",
-    "altimate_code": "Alt",
-    "claude_desktop": "Desktop",
+    "claude_code":    "◆ Claude",
+    "codex":          "⬡ Codex",
+    "altimate_code":  "⚡ Alt",
+    "claude_desktop": "◇ Desktop",
+    "gemini":         "✦ Gemini",
 }
 
 _FTOOL_MAP = {
     "ftool-all":   None,
     "ftool-cc":    "claude_code",
     "ftool-codex": "codex",
+    "ftool-gem":   "gemini",
     "ftool-alt":   "altimate_code",
 }
 
@@ -89,14 +94,16 @@ class SessionTable(Widget):
     SessionTable #filter-label {
         width: auto;
         margin-right: 1;
-        color: $text-muted;
+        color: $accent;
+        text-style: bold;
     }
     SessionTable #filter-input {
-        width: 28;
+        width: 26;
         margin-right: 1;
+        border: tall $primary;
     }
     SessionTable .filter-tool-btn {
-        min-width: 7;
+        min-width: 9;
         height: 1;
         margin-right: 1;
         background: $surface;
@@ -147,14 +154,15 @@ class SessionTable(Widget):
             with Horizontal(id="filter-bar", classes="hidden"):
                 yield Label("Filter:", id="filter-label")
                 yield Input(placeholder="title or project…", id="filter-input")
-                yield Button("All",   id="ftool-all",    classes="filter-tool-btn active")
-                yield Button("CC",    id="ftool-cc",     classes="filter-tool-btn")
-                yield Button("Codex", id="ftool-codex",  classes="filter-tool-btn")
-                yield Button("Alt",   id="ftool-alt",    classes="filter-tool-btn")
-            yield DataTable(cursor_type="row", zebra_stripes=True)
+                yield Button("All",      id="ftool-all",    classes="filter-tool-btn active")
+                yield Button("◆ CC",    id="ftool-cc",     classes="filter-tool-btn")
+                yield Button("⬡ Codex", id="ftool-codex",  classes="filter-tool-btn")
+                yield Button("✦ Gem",   id="ftool-gem",    classes="filter-tool-btn")
+                yield Button("⚡ Alt",   id="ftool-alt",    classes="filter-tool-btn")
+            yield DataTable(cursor_type="row", zebra_stripes=True, id="sessions-datatable")
 
     def on_mount(self) -> None:
-        self.border_title = "Sessions"
+        self.border_title = "◈ Sessions"
         table = self.query_one(DataTable)
         table.add_columns("Tool", "Title", "Updated", "Tokens", "ID")
         self.reload()
@@ -210,7 +218,7 @@ class SessionTable(Widget):
             tool_label = TOOL_MARKUP.get(tool, f"⚪ {tool}")
 
             from contextforge.utils.display import _clean_title
-            title = _clean_title(row.get("title") or "", max_len=38) or "(no title)"
+            title = _clean_title(row.get("title") or "", max_len=40) or "(no title)"
 
             updated_ms = row.get("updated_at") or 0
             try:

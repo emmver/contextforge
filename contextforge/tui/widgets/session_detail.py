@@ -11,21 +11,23 @@ from textual.widget import Widget
 from textual.widgets import Markdown, Static
 
 TOOL_COLORS = {
-    "claude_code": "cyan",
-    "codex": "green",
-    "altimate_code": "magenta",
+    "claude_code":    "cyan",
+    "codex":          "green",
+    "altimate_code":  "magenta",
     "claude_desktop": "yellow",
+    "gemini":         "blue",
 }
 TOOL_LABELS = {
-    "claude_code": "Claude Code",
-    "codex": "Codex",
-    "altimate_code": "altimate",
-    "claude_desktop": "Desktop",
+    "claude_code":    "◆ Claude Code",
+    "codex":          "⬡ Codex",
+    "altimate_code":  "⚡ Altimate",
+    "claude_desktop": "◇ Claude Desktop",
+    "gemini":         "✦ Gemini",
 }
 
 
 def _meta_line(label: str, value: str, color: str = "cyan") -> str:
-    return f"[bold {color}]{label:<10}[/bold {color}] {value}"
+    return f"[dim]{label:<10}[/dim] {value}"
 
 
 def _fmt_tokens(n: int | None) -> str:
@@ -75,11 +77,14 @@ class SessionDetail(Widget):
         color: $text-disabled;
         margin: 4 0;
         text-align: center;
+        text-style: italic;
     }
     SessionDetail #detail-title {
         text-style: bold;
         color: $accent;
         margin-bottom: 1;
+        padding-bottom: 1;
+        border-bottom: solid $primary-background-lighten-1;
     }
     SessionDetail #detail-meta-block {
         margin-bottom: 1;
@@ -88,8 +93,9 @@ class SessionDetail(Widget):
     }
     SessionDetail #detail-summary-label {
         text-style: bold;
-        color: $text-muted;
+        color: $accent;
         margin-bottom: 1;
+        margin-top: 1;
     }
     SessionDetail Markdown {
         background: transparent;
@@ -111,11 +117,11 @@ class SessionDetail(Widget):
             yield Static("", id="detail-status")
             yield Static("", id="detail-tags")
             yield Static("", id="detail-id")
-        yield Static("── Summary ──", id="detail-summary-label")
+        yield Static("✎ Summary", id="detail-summary-label")
         yield Markdown("", id="detail-summary-md")
 
     def on_mount(self) -> None:
-        self.border_title = "Detail"
+        self.border_title = "◈ Detail"
         self.query_one("#detail-summary-label").display = False
         self.query_one("#detail-meta-block").display = False
         self.query_one("#detail-title").display = False
@@ -168,15 +174,15 @@ class SessionDetail(Widget):
         self.query_one("#detail-meta-block").display = True
         self.query_one("#detail-summary-label").display = True
 
-        self.query_one("#detail-title", Static).update(f"[bold accent]{title}[/bold accent]")
-        self.query_one("#detail-tool", Static).update(_meta_line("Tool", tool_markup, tool_color))
-        self.query_one("#detail-cwd", Static).update(_meta_line("CWD", f"[dim]{cwd}[/dim]", "dim"))
-        self.query_one("#detail-tokens", Static).update(_meta_line("Tokens", tok_markup, "dim"))
-        self.query_one("#detail-created", Static).update(_meta_line("Created", f"[dim]{created_str}[/dim]", "dim"))
-        self.query_one("#detail-updated", Static).update(_meta_line("Updated", f"[dim]{updated_str}[/dim]", "dim"))
-        self.query_one("#detail-status", Static).update(_meta_line("Status", status, "dim"))
-        self.query_one("#detail-tags", Static).update(_meta_line("Tags", tags, "dim"))
-        self.query_one("#detail-id", Static).update(_meta_line("ID", f"[dim]{session_id}[/dim]", "dim"))
+        self.query_one("#detail-title", Static).update(f"[bold]{title}[/bold]")
+        self.query_one("#detail-tool", Static).update(_meta_line("Tool", tool_markup))
+        self.query_one("#detail-cwd", Static).update(_meta_line("Project", f"[dim]{cwd}[/dim]"))
+        self.query_one("#detail-tokens", Static).update(_meta_line("Tokens", tok_markup))
+        self.query_one("#detail-created", Static).update(_meta_line("Created", f"[dim]{created_str}[/dim]"))
+        self.query_one("#detail-updated", Static).update(_meta_line("Updated", f"[dim]{updated_str}[/dim]"))
+        self.query_one("#detail-status", Static).update(_meta_line("Status", f"[dim]{status}[/dim]"))
+        self.query_one("#detail-tags", Static).update(_meta_line("Tags", f"[dim]{tags}[/dim]"))
+        self.query_one("#detail-id", Static).update(_meta_line("ID", f"[dim]{session_id}[/dim]"))
 
         md = self.query_one("#detail-summary-md", Markdown)
         self.app.call_later(md.update, summary)

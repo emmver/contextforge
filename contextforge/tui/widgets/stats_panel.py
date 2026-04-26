@@ -16,16 +16,18 @@ _BLOCKS = " ▏▎▍▌▋▊▉█"   # 9 levels: 0/8 → 8/8 of a cell
 _SPARK = "▁▂▃▄▅▆▇█"      # 8 vertical height levels
 
 TOOL_COLORS = {
-    "claude_code": "cyan",
-    "codex": "green",
-    "altimate_code": "magenta",
+    "claude_code":    "cyan",
+    "codex":          "green",
+    "altimate_code":  "magenta",
     "claude_desktop": "yellow",
+    "gemini":         "blue",
 }
 TOOL_LABELS = {
-    "claude_code": "Claude Code",
-    "codex": "Codex",
-    "altimate_code": "altimate",
-    "claude_desktop": "Desktop",
+    "claude_code":    "◆ Claude Code",
+    "codex":          "⬡ Codex",
+    "altimate_code":  "⚡ Altimate",
+    "claude_desktop": "◇ Desktop",
+    "gemini":         "✦ Gemini",
 }
 
 WINDOW_LABELS = {
