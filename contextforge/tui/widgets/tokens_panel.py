@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from rich.markup import escape
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import ScrollableContainer, Vertical
@@ -98,7 +99,7 @@ class TurnDetailPanel(ModalScreen):
         # ── Text content ────────────────────────────────────────────────────
         if msg.content:
             parts.append("[bold dim]── Content ──[/bold dim]")
-            parts.append(msg.content)
+            parts.append(escape(msg.content))
 
         # ── Tool calls ──────────────────────────────────────────────────────
         if msg.tool_calls:
@@ -109,17 +110,19 @@ class TurnDetailPanel(ModalScreen):
                 try:
                     formatted = json.dumps(json.loads(raw_input), indent=2)
                 except (json.JSONDecodeError, TypeError):
-                    formatted = raw_input
-                parts.append(f"[bold yellow]{i}. {name}[/bold yellow]")
-                parts.append(f"[dim]{formatted}[/dim]")
+                    formatted = raw_input if isinstance(raw_input, str) else str(raw_input)
+                parts.append(f"[bold yellow]{i}. {escape(name)}[/bold yellow]")
+                parts.append(f"[dim]{escape(formatted)}[/dim]")
 
         # ── Tool results ────────────────────────────────────────────────────
         if msg.tool_results:
             parts.append("\n[bold dim]── Tool Results ──[/bold dim]")
             for i, tr in enumerate(msg.tool_results, 1):
                 output = tr.get("output", "")
+                if not isinstance(output, str):
+                    output = str(output)
                 parts.append(f"[bold green]Result {i}[/bold green]")
-                parts.append(f"[dim]{output}[/dim]")
+                parts.append(f"[dim]{escape(output)}[/dim]")
 
         self.query_one("#turn-body", Static).update("\n".join(parts))
 
