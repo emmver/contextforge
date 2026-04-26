@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from rich.markup import escape
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import ScrollableContainer, Vertical
@@ -94,16 +94,16 @@ class TurnDetailPanel(ModalScreen):
             + (f"  [magenta]{len(msg.tool_results)} result(s)[/magenta]" if msg.tool_results else "")
         )
 
-        parts: list[str] = []
+        body = Text()
 
         # ── Text content ────────────────────────────────────────────────────
         if msg.content:
-            parts.append("[bold dim]── Content ──[/bold dim]")
-            parts.append(escape(msg.content))
+            body.append("── Content ──\n", style="bold dim")
+            body.append(msg.content + "\n")
 
         # ── Tool calls ──────────────────────────────────────────────────────
         if msg.tool_calls:
-            parts.append("\n[bold dim]── Tool Calls ──[/bold dim]")
+            body.append("\n── Tool Calls ──\n", style="bold dim")
             for i, tc in enumerate(msg.tool_calls, 1):
                 name = tc.get("name", "?")
                 raw_input = tc.get("input", "")
@@ -111,20 +111,20 @@ class TurnDetailPanel(ModalScreen):
                     formatted = json.dumps(json.loads(raw_input), indent=2)
                 except (json.JSONDecodeError, TypeError):
                     formatted = raw_input if isinstance(raw_input, str) else str(raw_input)
-                parts.append(f"[bold yellow]{i}. {escape(name)}[/bold yellow]")
-                parts.append(f"[dim]{escape(formatted)}[/dim]")
+                body.append(f"{i}. {name}\n", style="bold yellow")
+                body.append(formatted + "\n", style="dim")
 
         # ── Tool results ────────────────────────────────────────────────────
         if msg.tool_results:
-            parts.append("\n[bold dim]── Tool Results ──[/bold dim]")
+            body.append("\n── Tool Results ──\n", style="bold dim")
             for i, tr in enumerate(msg.tool_results, 1):
                 output = tr.get("output", "")
                 if not isinstance(output, str):
                     output = str(output)
-                parts.append(f"[bold green]Result {i}[/bold green]")
-                parts.append(f"[dim]{escape(output)}[/dim]")
+                body.append(f"Result {i}\n", style="bold green")
+                body.append(output + "\n", style="dim")
 
-        self.query_one("#turn-body", Static).update("\n".join(parts))
+        self.query_one("#turn-body", Static).update(body)
 
 
 class TokensPanel(ModalScreen):
