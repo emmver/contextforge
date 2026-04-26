@@ -23,12 +23,12 @@ def count_tokens(text) -> int:
             )
         else:
             text = str(text) if text is not None else ""
-    return len(_get_encoding().encode(text))
+    return len(_get_encoding().encode(text, disallowed_special=()))
 
 
 def truncate_to_budget(text: str, budget: int) -> str:
     enc = _get_encoding()
-    tokens = enc.encode(text)
+    tokens = enc.encode(text, disallowed_special=())
     if len(tokens) <= budget:
         return text
     return enc.decode(tokens[:budget])
