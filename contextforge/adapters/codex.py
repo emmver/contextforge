@@ -50,19 +50,39 @@ def _compute_message_tokens(msg: Message) -> int:
     return total
 
 
-def _extract_function_output(raw_output: str) -> str:
+def _extract_function_output(raw_output) -> str:
     """Extract the human-readable output from a Codex function_call_output payload.
 
-    The `output` field is a JSON string: {"output": "...", "metadata": {...}}.
-    Returns the inner "output" string, or the raw string on parse failure.
+    The `output` field may be:
+    - A JSON string: {"output": "...", "metadata": {...}}
+    - An already-parsed list of content blocks (e.g. input_text/input_image)
+    - An already-parsed dict
+    Returns a plain string suitable for token counting.
     """
+    if isinstance(raw_output, list):
+        # Content-block array — extract text parts, skip images
+        parts = [
+            block.get("text", "")
+            for block in raw_output
+            if isinstance(block, dict) and block.get("type") in ("text", "input_text")
+        ]
+        return "\n".join(p for p in parts if p)
+    if isinstance(raw_output, dict):
+        return str(raw_output.get("output", ""))
     try:
         parsed = json.loads(raw_output)
         if isinstance(parsed, dict):
             return str(parsed.get("output", raw_output))
+        if isinstance(parsed, list):
+            parts = [
+                block.get("text", "")
+                for block in parsed
+                if isinstance(block, dict) and block.get("type") in ("text", "input_text")
+            ]
+            return "\n".join(p for p in parts if p)
     except (json.JSONDecodeError, TypeError):
         pass
-    return raw_output
+    return str(raw_output) if raw_output is not None else ""
 
 
 class CodexAdapter(ToolAdapter):

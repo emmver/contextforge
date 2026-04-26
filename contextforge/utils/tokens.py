@@ -13,7 +13,16 @@ def _get_encoding() -> tiktoken.Encoding:
     return _ENCODING
 
 
-def count_tokens(text: str) -> int:
+def count_tokens(text) -> int:
+    if not isinstance(text, str):
+        if isinstance(text, list):
+            text = " ".join(
+                block.get("text", "")
+                for block in text
+                if isinstance(block, dict) and block.get("type") in ("text", "input_text")
+            )
+        else:
+            text = str(text) if text is not None else ""
     return len(_get_encoding().encode(text))
 
 
