@@ -18,12 +18,29 @@ from contextforge.core.summarizer import batch_summarize, summarize_session
 from contextforge.models.config import ForgeConfig
 from contextforge.utils.display import console, err_console, sessions_table
 
+def _version_callback(value: bool) -> None:
+    if value:
+        from importlib.metadata import version
+        typer.echo(f"context-forge-cli {version('context-forge-cli')}")
+        raise typer.Exit()
+
+
 app = typer.Typer(
     name="cf",
     help="ContextForge — session manager and context bridge for agentic CLI tools.",
     add_completion=False,
     no_args_is_help=True,
 )
+
+
+@app.callback()
+def main(
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", "-V", callback=_version_callback, is_eager=True, help="Show version and exit."),
+    ] = None,
+) -> None:
+    pass
 
 config_app = typer.Typer(name="config", help="Manage ContextForge configuration.")
 app.add_typer(config_app, name="config")
