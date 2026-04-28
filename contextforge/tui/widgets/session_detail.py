@@ -8,7 +8,7 @@ from pathlib import Path
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widget import Widget
-from textual.widgets import Markdown, Static
+from textual.widgets import Markdown, Static, TextArea
 
 TOOL_COLORS = {
     "claude_code":    "cyan",
@@ -101,6 +101,17 @@ class SessionDetail(Widget):
         background: transparent;
         color: $text;
     }
+    SessionDetail TextArea {
+        height: 1;
+        border: none;
+        background: transparent;
+        color: $text;
+        padding: 0;
+        margin: 0;
+    }
+    SessionDetail TextArea:focus {
+        border: none;
+    }
     """
 
     _current_id: str | None = None
@@ -110,13 +121,13 @@ class SessionDetail(Widget):
         yield Static("", id="detail-title")
         with Vertical(id="detail-meta-block"):
             yield Static("", id="detail-tool")
-            yield Static("", id="detail-cwd")
+            yield TextArea("", id="detail-cwd", read_only=True)
             yield Static("", id="detail-tokens")
             yield Static("", id="detail-created")
             yield Static("", id="detail-updated")
             yield Static("", id="detail-status")
             yield Static("", id="detail-tags")
-            yield Static("", id="detail-id")
+            yield TextArea("", id="detail-id", read_only=True)
         yield Static("✎ Summary", id="detail-summary-label")
         yield Markdown("", id="detail-summary-md")
 
@@ -176,13 +187,13 @@ class SessionDetail(Widget):
 
         self.query_one("#detail-title", Static).update(f"[bold]{title}[/bold]")
         self.query_one("#detail-tool", Static).update(_meta_line("Tool", tool_markup))
-        self.query_one("#detail-cwd", Static).update(_meta_line("Project", f"[dim]{cwd}[/dim]"))
+        self.query_one("#detail-cwd", TextArea).load_text("Project   " + cwd)
         self.query_one("#detail-tokens", Static).update(_meta_line("Tokens", tok_markup))
         self.query_one("#detail-created", Static).update(_meta_line("Created", f"[dim]{created_str}[/dim]"))
         self.query_one("#detail-updated", Static).update(_meta_line("Updated", f"[dim]{updated_str}[/dim]"))
         self.query_one("#detail-status", Static).update(_meta_line("Status", f"[dim]{status}[/dim]"))
         self.query_one("#detail-tags", Static).update(_meta_line("Tags", f"[dim]{tags}[/dim]"))
-        self.query_one("#detail-id", Static).update(_meta_line("ID", f"[dim]{session_id}[/dim]"))
+        self.query_one("#detail-id", TextArea).load_text("ID         " + session_id)
 
         md = self.query_one("#detail-summary-md", Markdown)
         self.app.call_later(md.update, summary)

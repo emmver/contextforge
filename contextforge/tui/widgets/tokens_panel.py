@@ -4,12 +4,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import ScrollableContainer, Vertical
+from textual.containers import Vertical
 from textual.screen import ModalScreen
-from textual.widgets import DataTable, Static
+from textual.widgets import DataTable, Static, TextArea
 
 from contextforge.models.session import Message
 from contextforge.tui.clipboard import copy as clipboard_copy
@@ -76,9 +75,15 @@ class TurnDetailPanel(ModalScreen):
         border-bottom: solid $primary-background-lighten-1;
         margin-bottom: 1;
     }
-    TurnDetailPanel ScrollableContainer {
+    TurnDetailPanel TextArea {
         height: 1fr;
+        border: none;
+        background: transparent;
+        color: $text;
         padding: 0 1;
+    }
+    TurnDetailPanel TextArea:focus {
+        border: none;
     }
     TurnDetailPanel #turn-footer {
         height: 1;
@@ -96,9 +101,8 @@ class TurnDetailPanel(ModalScreen):
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static("", id="turn-header")
-            with ScrollableContainer():
-                yield Static("", id="turn-body")
-            yield Static("[dim]ESC / q — close   Y — copy[/dim]", id="turn-footer")
+            yield TextArea("", id="turn-body", read_only=True)
+            yield Static("[dim]ESC / q — close   select & Ctrl+C[/dim]", id="turn-footer")
 
     def on_mount(self) -> None:
         msg = self._msg
@@ -120,17 +124,13 @@ class TurnDetailPanel(ModalScreen):
                if msg.tool_results else "")
         )
 
-        body = Text()
         plain_parts = []
 
         if msg.content:
-            body.append("── Content ──\n", style="bold dim")
-            body.append(msg.content + "\n")
             plain_parts.append("── Content ──\n")
             plain_parts.append(msg.content + "\n")
 
         if msg.tool_calls:
-            body.append("\n── Tool Calls ──\n", style="bold dim")
             plain_parts.append("\n── Tool Calls ──\n")
             for i, tc in enumerate(msg.tool_calls, 1):
                 name = tc.get("name", "?")
@@ -139,28 +139,23 @@ class TurnDetailPanel(ModalScreen):
                     formatted = json.dumps(json.loads(raw_input), indent=2)
                 except (json.JSONDecodeError, TypeError):
                     formatted = raw_input if isinstance(raw_input, str) else str(raw_input)
-                body.append(f"⚙ {i}. {name}\n", style="bold yellow")
-                body.append(formatted + "\n", style="dim")
                 plain_parts.append(f"⚙ {i}. {name}\n")
                 plain_parts.append(formatted + "\n")
 
         if msg.tool_results:
-            body.append("\n── Tool Results ──\n", style="bold dim")
             plain_parts.append("\n── Tool Results ──\n")
             for i, tr in enumerate(msg.tool_results, 1):
                 output = tr.get("output", "")
                 if not isinstance(output, str):
                     output = str(output)
-                body.append(f"⇥ Result {i}\n", style="bold green")
-                body.append(output + "\n", style="dim")
                 plain_parts.append(f"⇥ Result {i}\n")
                 plain_parts.append(output + "\n")
 
         self._plain_text = "".join(plain_parts)
-        self.query_one("#turn-body", Static).update(body)
+        self.query_one("#turn-body", TextArea).load_text(self._plain_text)
 
     def action_copy_content(self) -> None:
-        """Copy the turn content to the clipboard."""
+        """Copy the full turn content to the clipboard."""
         if clipboard_copy(self._plain_text):
             self.notify(f"Copied turn #{self._turn_num} content", title="Copy")
         else:
