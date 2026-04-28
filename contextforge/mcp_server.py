@@ -16,9 +16,10 @@ mcp = FastMCP(
         "ContextForge provides read-only access to indexed agentic-tool sessions "
         "and their token usage. Start with list_sessions to discover what's available "
         "(supports pagination via offset/limit and date filtering via window). "
-        "Use get_session_tokens for token stats — pass include_turns=True with "
-        "turns_limit/turns_offset to page through per-turn data without blowing up "
-        "the context window. Use get_token_analytics for aggregated stats across all tools."
+        "Use get_session_tokens for token stats and conversation content — pass "
+        "include_turns=True with turns_limit/turns_offset to page through per-turn "
+        "data including full message text, tool calls, and tool results. "
+        "Use get_token_analytics for aggregated stats across all tools."
     ),
 )
 
@@ -187,6 +188,15 @@ def get_session_tokens(
                 "text_tokens": t.text_tokens,
                 "tool_call_tokens": t.tool_call_tokens,
                 "tool_result_tokens": t.tool_result_tokens,
+                "content": t.content[:8000],
+                "tool_calls": [
+                    {"name": tc.get("name", "?"), "input": tc.get("input", "")[:4000]}
+                    for tc in t.tool_calls
+                ],
+                "tool_results": [
+                    {"output": tr.get("output", "")[:4000]}
+                    for tr in t.tool_results
+                ],
             }
             for t in turns
         ]

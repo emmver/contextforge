@@ -21,6 +21,9 @@ class TurnStats:
     text_tokens: int = 0
     tool_call_tokens: int = 0
     tool_result_tokens: int = 0
+    content: str = ""  # full message text content
+    tool_calls: list[dict] = field(default_factory=list)    # [{name, input}]
+    tool_results: list[dict] = field(default_factory=list)  # [{output}]
 
 
 @dataclass
@@ -102,6 +105,9 @@ def analyze_tokens(
             text_tokens=text_tokens,
             tool_call_tokens=tool_call_tokens,
             tool_result_tokens=tool_result_tokens,
+            content=msg.content,
+            tool_calls=msg.tool_calls,
+            tool_results=msg.tool_results,
         ))
 
     return SessionTokenReport(
