@@ -8,6 +8,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header
 
+from contextforge.tui.clipboard import copy as clipboard_copy
 from contextforge.tui.widgets.session_detail import SessionDetail
 from contextforge.tui.widgets.session_table import SessionTable
 from contextforge.tui.widgets.status_bar import StatusBar
@@ -31,6 +32,7 @@ class ContextForgeApp(App):
         Binding("x", "tokens", "# Tokens"),
         Binding("a", "analytics", "▤ Analytics"),
         Binding("/", "filter", "⌕ Filter"),
+        Binding("y", "yank_id", "📋 Copy ID"),
     ]
 
     def __init__(self, db_path: Path | None = None) -> None:
@@ -203,3 +205,14 @@ class ContextForgeApp(App):
     def action_filter(self) -> None:
         """Toggle the filter bar in the session table."""
         self.query_one(SessionTable).toggle_filter()
+
+    def action_yank_id(self) -> None:
+        """Copy the current session ID to the clipboard."""
+        sid = getattr(self, "_current_session_id", None)
+        if sid is None:
+            self.notify("Select a session first.", severity="warning")
+            return
+        if clipboard_copy(sid):
+            self.notify(f"Copied [cyan]{sid}[/cyan]", title="Yank")
+        else:
+            self.notify("Failed to copy to clipboard.", severity="error")

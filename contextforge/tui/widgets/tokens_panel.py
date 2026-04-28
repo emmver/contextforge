@@ -12,6 +12,7 @@ from textual.screen import ModalScreen
 from textual.widgets import DataTable, Static
 
 from contextforge.models.session import Message
+from contextforge.tui.clipboard import copy as clipboard_copy
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ class TurnDetailPanel(ModalScreen):
 
     BINDINGS = [
         Binding("escape,q", "dismiss(None)", "Close"),
+        Binding("y", "copy_content", "📋 Copy"),
     ]
 
     DEFAULT_CSS = """
@@ -89,13 +91,14 @@ class TurnDetailPanel(ModalScreen):
         super().__init__()
         self._turn_num = turn_num
         self._msg = msg
+        self._plain_text = ""
 
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static("", id="turn-header")
             with ScrollableContainer():
                 yield Static("", id="turn-body")
-            yield Static("[dim]ESC / q — close[/dim]", id="turn-footer")
+            yield Static("[dim]ESC / q — close   Y — copy[/dim]", id="turn-footer")
 
     def on_mount(self) -> None:
         msg = self._msg
@@ -118,13 +121,17 @@ class TurnDetailPanel(ModalScreen):
         )
 
         body = Text()
+        plain_parts = []
 
         if msg.content:
             body.append("── Content ──\n", style="bold dim")
             body.append(msg.content + "\n")
+            plain_parts.append("── Content ──\n")
+            plain_parts.append(msg.content + "\n")
 
         if msg.tool_calls:
             body.append("\n── Tool Calls ──\n", style="bold dim")
+            plain_parts.append("\n── Tool Calls ──\n")
             for i, tc in enumerate(msg.tool_calls, 1):
                 name = tc.get("name", "?")
                 raw_input = tc.get("input", "")
@@ -134,17 +141,30 @@ class TurnDetailPanel(ModalScreen):
                     formatted = raw_input if isinstance(raw_input, str) else str(raw_input)
                 body.append(f"⚙ {i}. {name}\n", style="bold yellow")
                 body.append(formatted + "\n", style="dim")
+                plain_parts.append(f"⚙ {i}. {name}\n")
+                plain_parts.append(formatted + "\n")
 
         if msg.tool_results:
             body.append("\n── Tool Results ──\n", style="bold dim")
+            plain_parts.append("\n── Tool Results ──\n")
             for i, tr in enumerate(msg.tool_results, 1):
                 output = tr.get("output", "")
                 if not isinstance(output, str):
                     output = str(output)
                 body.append(f"⇥ Result {i}\n", style="bold green")
                 body.append(output + "\n", style="dim")
+                plain_parts.append(f"⇥ Result {i}\n")
+                plain_parts.append(output + "\n")
 
+        self._plain_text = "".join(plain_parts)
         self.query_one("#turn-body", Static).update(body)
+
+    def action_copy_content(self) -> None:
+        """Copy the turn content to the clipboard."""
+        if clipboard_copy(self._plain_text):
+            self.notify(f"Copied turn #{self._turn_num} content", title="Copy")
+        else:
+            self.notify("Failed to copy to clipboard.", severity="error")
 
 
 # ── TokensPanel ───────────────────────────────────────────────────────────────
