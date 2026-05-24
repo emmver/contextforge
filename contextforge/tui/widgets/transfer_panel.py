@@ -12,6 +12,7 @@ TOOLS = [
     ("claude_code", "Claude Code"),
     ("codex", "Codex"),
     ("altimate_code", "altimate-code"),
+    ("antigravity", "Antigravity"),
 ]
 
 STRATEGIES = [

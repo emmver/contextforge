@@ -16,6 +16,7 @@ TOOL_COLORS = {
     "altimate_code":  "magenta",
     "claude_desktop": "yellow",
     "gemini":         "blue",
+    "antigravity":    "white",
 }
 TOOL_LABELS = {
     "claude_code":    "◆ Claude Code",
@@ -23,6 +24,7 @@ TOOL_LABELS = {
     "altimate_code":  "⚡ Altimate",
     "claude_desktop": "◇ Claude Desktop",
     "gemini":         "✦ Gemini",
+    "antigravity":    "◉ Antigravity",
 }
 
 

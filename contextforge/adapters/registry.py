@@ -6,6 +6,7 @@ from contextforge.adapters.base import ToolAdapter
 from contextforge.adapters.claude_code import ClaudeCodeAdapter
 from contextforge.adapters.claude_desktop import ClaudeDesktopAdapter
 from contextforge.adapters.codex import CodexAdapter
+from contextforge.adapters.antigravity import AntigravityAdapter
 from contextforge.adapters.gemini import GeminiAdapter
 
 ADAPTERS: dict[str, type[ToolAdapter]] = {
@@ -14,6 +15,7 @@ ADAPTERS: dict[str, type[ToolAdapter]] = {
     "codex": CodexAdapter,
     "altimate_code": AltimateCodeAdapter,
     "gemini": GeminiAdapter,
+    "antigravity": AntigravityAdapter,
 }
 
 

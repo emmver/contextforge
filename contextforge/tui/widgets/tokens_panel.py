@@ -24,6 +24,7 @@ _TOOL_LABELS = {
     "altimate_code":  "⚡ Altimate",
     "claude_desktop": "◇ Claude Desktop",
     "gemini":         "✦ Gemini",
+    "antigravity":    "◉ Antigravity",
 }
 
 

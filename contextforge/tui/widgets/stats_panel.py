@@ -21,6 +21,7 @@ TOOL_COLORS = {
     "altimate_code":  "magenta",
     "claude_desktop": "yellow",
     "gemini":         "blue",
+    "antigravity":    "white",
 }
 TOOL_LABELS = {
     "claude_code":    "◆ Claude Code",
@@ -28,9 +29,10 @@ TOOL_LABELS = {
     "altimate_code":  "⚡ Altimate",
     "claude_desktop": "◇ Desktop",
     "gemini":         "✦ Gemini",
+    "antigravity":    "◉ Antigravity",
 }
 
-_TOOL_ORDER = ["claude_code", "codex", "gemini", "altimate_code", "claude_desktop"]
+_TOOL_ORDER = ["claude_code", "codex", "gemini", "altimate_code", "claude_desktop", "antigravity"]
 
 WINDOW_LABELS = {
     "7d":  "7 days",

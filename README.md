@@ -140,6 +140,7 @@ The method is chosen automatically based on token count and whether a target ses
 | Claude Desktop | `~/Library/Application Support/Claude/local-agent-mode-sessions/` | `--system-prompt` |
 | Codex | `~/.codex/state_5.sqlite` | `resume` / `fork` |
 | Gemini | `~/.gemini/tmp/<project_hash>/chats/` JSON | New session / `/resume` |
+| Antigravity | `~/.gemini/antigravity-cli/history.jsonl` | `-i` / `--conversation` |
 | altimate-code | `~/.local/share/altimate-code/opencode.db` | `run -s` / `import` |
 
 ## Session Summaries
