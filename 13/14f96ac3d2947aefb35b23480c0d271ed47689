@@ -1,0 +1,41 @@
+contextforge/tui/widgets/transfer_panel.py
+  s_3994050bdc69c5::t_5750d1c70f270b 15
+pyproject.toml
+  s_3994050bdc69c5::t_08278622f35f93 3
+contextforge/adapters/antigravity.py
+  s_3994050bdc69c5::t_0270147ca630f6 1-233
+PLAN.md
+  s_3994050bdc69c5::t_9ecb88c07570c7 90
+contextforge/tui/widgets/status_bar.py
+  s_3994050bdc69c5::t_753abb5e2c13f4 72,99
+contextforge/tui/widgets/stats_panel.py
+  s_3994050bdc69c5::t_198c15a722c8df 24,32,35
+contextforge/tui/widgets/tokens_panel.py
+  s_3994050bdc69c5::t_5ad171f5904d55 27
+contextforge/adapters/registry.py
+  s_3994050bdc69c5::t_e1f4f681028e36 9,18
+tests/adapters/test_antigravity.py
+  s_3994050bdc69c5::t_76421636943322 1-195
+README.md
+  s_3994050bdc69c5::t_4aec6857794844 143
+contextforge/tui/widgets/session_table.py
+  s_3994050bdc69c5::t_ab679004a4bd12 22,31,40,49,166
+contextforge/tui/widgets/session_detail.py
+  s_3994050bdc69c5::t_326426790bdc3d 19,27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "1314f96ac3d2947aefb35b23480c0d271ed47689",
+  "prompts": {},
+  "sessions": {
+    "s_3994050bdc69c5": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019e5a76-e0c2-717e-a88d-20ac53ee1021",
+        "model": "kimi-k2.6:cloud"
+      },
+      "human_author": "emmver <emmvereroudakis@gmail.com>"
+    }
+  }
+}
