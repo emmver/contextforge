@@ -13,6 +13,7 @@ TOOLS = [
     ("codex", "Codex"),
     ("altimate_code", "altimate-code"),
     ("antigravity", "Antigravity"),
+    ("cursor", "Cursor"),
 ]
 
 STRATEGIES = [

@@ -17,6 +17,7 @@ TOOL_COLORS = {
     "claude_desktop": "yellow",
     "gemini":         "blue",
     "antigravity":    "white",
+    "cursor":         "bright_white",
 }
 TOOL_LABELS = {
     "claude_code":    "◆ Claude Code",
@@ -25,6 +26,7 @@ TOOL_LABELS = {
     "claude_desktop": "◇ Claude Desktop",
     "gemini":         "✦ Gemini",
     "antigravity":    "◉ Antigravity",
+    "cursor":         "▲ Cursor",
 }
 
 

@@ -88,6 +88,7 @@ Agents and contributors: update this file as you work.
 - [ ] GitHub Actions CI: `uv run pytest --cov=contextforge`
 - [ ] `open-claw` adapter (if/when CLI interface is documented)
 - [x] Antigravity adapter (`adapters/antigravity.py`)
+- [x] Cursor adapter (`adapters/cursor.py`)
 - [ ] Session search: `cf ls --search <query>`
 - [ ] Session archiving: `cf archive <id>`
 

@@ -20,6 +20,7 @@ TOOL_ICON = {
     "claude_desktop": "◇",   # Claude Desktop — open diamond
     "gemini":         "✦",   # Google Gemini — four-pointed star
     "antigravity":    "◉",   # Antigravity — circle
+    "cursor":         "▲",   # Cursor — triangle
 }
 
 TOOL_MARKUP = {
@@ -29,6 +30,7 @@ TOOL_MARKUP = {
     "claude_desktop": "[yellow]◇ Desktop[/yellow]",
     "gemini":         "[blue]✦ Gemini[/blue]",
     "antigravity":    "[white]◉ Agy[/white]",
+    "cursor":         "[bright_white]▲ Cursor[/bright_white]",
 }
 
 TOOL_DISPLAY = {
@@ -38,6 +40,7 @@ TOOL_DISPLAY = {
     "claude_desktop": "◇ Desktop",
     "gemini":         "✦ Gemini",
     "antigravity":    "◉ Agy",
+    "cursor":         "▲ Cursor",
 }
 
 _FTOOL_MAP = {
@@ -47,6 +50,7 @@ _FTOOL_MAP = {
     "ftool-gem":   "gemini",
     "ftool-alt":   "altimate_code",
     "ftool-agy":   "antigravity",
+    "ftool-cur":   "cursor",
 }
 
 
@@ -164,6 +168,7 @@ class SessionTable(Widget):
                 yield Button("✦ Gem",   id="ftool-gem",    classes="filter-tool-btn")
                 yield Button("⚡ Alt",   id="ftool-alt",    classes="filter-tool-btn")
                 yield Button("◉ Agy",   id="ftool-agy",    classes="filter-tool-btn")
+                yield Button("▲ Cursor", id="ftool-cur",    classes="filter-tool-btn")
             yield DataTable(cursor_type="row", zebra_stripes=True, id="sessions-datatable")
 
     def on_mount(self) -> None:

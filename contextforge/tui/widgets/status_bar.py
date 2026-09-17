@@ -70,6 +70,7 @@ class StatusBar(Widget):
             "claude_desktop": "◇ Desktop",
             "gemini":         "✦ Gemini",
             "antigravity":    "◉ Agy",
+            "cursor":         "▲ Cursor",
         }
         for tool, label in labels.items():
             n = counts.get(tool, 0)
@@ -96,7 +97,7 @@ class StatusBar(Widget):
         if text:
             parts.append(f'"{text}"')
         if tool:
-            short = {"claude_code": "◆ CC", "codex": "⬡ Codex", "altimate_code": "⚡ Alt", "claude_desktop": "◇ Desktop", "gemini": "✦ Gemini", "antigravity": "◉ Agy"}.get(tool, tool)
+            short = {"claude_code": "◆ CC", "codex": "⬡ Codex", "altimate_code": "⚡ Alt", "claude_desktop": "◇ Desktop", "gemini": "✦ Gemini", "antigravity": "◉ Agy", "cursor": "▲ Cursor"}.get(tool, tool)
             parts.append(short)
 
         self.query_one("#status-filter", Static).update(

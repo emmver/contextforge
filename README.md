@@ -142,6 +142,7 @@ The method is chosen automatically based on token count and whether a target ses
 | Gemini | `~/.gemini/tmp/<project_hash>/chats/` JSON | New session / `/resume` |
 | Antigravity | `~/.gemini/antigravity-cli/history.jsonl` | `-i` / `--conversation` |
 | altimate-code | `~/.local/share/altimate-code/opencode.db` | `run -s` / `import` |
+| Cursor | `~/.config/Cursor/User/globalStorage/state.vscdb` | `cursor-agent -p` / `--resume` |
 
 ## Session Summaries
 

@@ -25,6 +25,7 @@ _TOOL_LABELS = {
     "claude_desktop": "◇ Claude Desktop",
     "gemini":         "✦ Gemini",
     "antigravity":    "◉ Antigravity",
+    "cursor":         "▲ Cursor",
 }
 
 
