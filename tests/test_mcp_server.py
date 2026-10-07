@@ -134,7 +134,7 @@ def test_get_session_tokens_structure(tmp_path):
     with patch("contextforge.mcp_server._db", return_value=db), \
          patch("contextforge.core.token_analyzer.get_adapter", return_value=mock_adapter):
         from contextforge.mcp_server import get_session_tokens
-        result = get_session_tokens("tok-1")
+        result = get_session_tokens("tok-1", include_turns=True)
 
     assert result is not None
     assert result["session_id"] == "tok-1"
@@ -155,7 +155,7 @@ def test_get_session_tokens_top_filter(tmp_path):
     with patch("contextforge.mcp_server._db", return_value=db), \
          patch("contextforge.core.token_analyzer.get_adapter", return_value=mock_adapter):
         from contextforge.mcp_server import get_session_tokens
-        result = get_session_tokens("tok-2", top=2)
+        result = get_session_tokens("tok-2", include_turns=True, top=2)
 
     assert result is not None
     assert len(result["turns"]) == 2

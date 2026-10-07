@@ -9,7 +9,8 @@ import pytest
 class _FakeEncoding:
     """Minimal tiktoken encoding stand-in using word-count approximation."""
 
-    def encode(self, text: str) -> list[int]:
+    def encode(self, text: str, **kwargs) -> list[int]:
+        # Accept (and ignore) tiktoken kwargs such as disallowed_special
         return list(range(max(1, len(text.split()))))
 
     def decode(self, tokens: list[int]) -> str:
