@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"b2c3d4e5-0000-4000-8000-000000000002","timestamp":"2026-01-15T10:31:00.000Z","cwd":"/home/dev/project-a"}
+{"type":"session_info","id":"d002ca75","parentId":"b3f3e321","timestamp":"2026-01-15T10:31:01.000Z","name":"subagent-researcher-e5f61122-3333-4444-5555-666677778888-1"}
+{"type":"message","id":"c1","parentId":null,"timestamp":"2026-01-15T10:31:02.000Z","message":{"role":"system","content":"","sections":{"preamble":"You are a research worker agent. Investigate the repository and report findings."}}}
+{"type":"message","id":"c2","parentId":"c1","timestamp":"2026-01-15T10:31:03.000Z","message":{"role":"user","content":[{"type":"text","text":"Find all uses of login in the repo."}],"timestamp":1768475463000}}
+{"type":"message","id":"c3","parentId":"c2","timestamp":"2026-01-15T10:31:04.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Login is referenced in the auth module and 3 test files."}],"usage":{"input":500,"output":10,"totalTokens":510,"cost":{"total":0.0005,"details":{}}},"stopReason":"endTurn","timestamp":1768475464000}}

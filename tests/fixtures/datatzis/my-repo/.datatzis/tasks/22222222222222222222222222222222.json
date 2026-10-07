@@ -1,0 +1,41 @@
+{
+  "id": "22222222222222222222222222222222",
+  "prompt": "Draft the inflation section for the article.",
+  "model": "anthropic/claude-sonnet-4-5",
+  "status": "completed",
+  "started": 1768479000.0,
+  "deadline": null,
+  "events": [
+    {
+      "id": "e1",
+      "tool": "retrieve_documents",
+      "arguments_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "started": 1768479001.0,
+      "status": "ok",
+      "ended": 1768479002.5,
+      "error": null,
+      "result": {"added": 4, "documents": ["CPI bulletin", "Eurostat release"]}
+    },
+    {
+      "id": "e2",
+      "tool": "edit_draft",
+      "arguments_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "started": 1768479003.0,
+      "status": "ok",
+      "ended": 1768479004.0,
+      "error": null,
+      "result": {"sections_updated": ["inflation"]}
+    }
+  ],
+  "used": {"read_file": 2},
+  "limits": {"turns": 40, "time_s": 300},
+  "ended": 1768479120.0,
+  "info": {
+    "model": "claude-sonnet-4-5",
+    "input_tokens": 9500,
+    "cached_input_tokens": 0,
+    "output_tokens": 210,
+    "reasoning": 0
+  },
+  "error": null
+}

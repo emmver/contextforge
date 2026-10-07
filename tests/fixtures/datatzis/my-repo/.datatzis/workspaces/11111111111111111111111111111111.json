@@ -1,0 +1,20 @@
+{
+  "id": "11111111111111111111111111111111",
+  "name": "Inflation analysis",
+  "transcript": [
+    {"role": "user", "text": "Draft the inflation section for the article."},
+    {"role": "notice", "text": "Research stage: 4 new documents, 2 revisions."},
+    {"role": "assistant", "text": "Draft updated — see draft.md for the inflation section."}
+  ],
+  "unresolved": [
+    "Source the 2025 CPI figure from Eurostat"
+  ],
+  "run_id": null,
+  "dossier_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "tasks": ["22222222222222222222222222222222", "33333333333333333333333333333333"],
+  "agent": {
+    "spec": "anthropic/claude-sonnet-4-5",
+    "messages": []
+  },
+  "updated_at": "2026-01-15T12:30:00.000+00:00"
+}

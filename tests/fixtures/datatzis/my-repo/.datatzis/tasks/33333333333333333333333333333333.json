@@ -1,0 +1,31 @@
+{
+  "id": "33333333333333333333333333333333",
+  "prompt": "Check the draft against the style guide.",
+  "model": "anthropic/claude-sonnet-4-5",
+  "status": "failed",
+  "started": 1768479300.0,
+  "deadline": null,
+  "events": [
+    {
+      "id": "f1",
+      "tool": "read_file",
+      "arguments_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "started": 1768479301.0,
+      "status": "error",
+      "ended": 1768479301.7,
+      "error": "draft.md not found in workspace",
+      "result": null
+    }
+  ],
+  "used": {"read_file": 1},
+  "limits": {"turns": 40, "time_s": 300},
+  "ended": 1768479301.7,
+  "info": {
+    "model": "claude-sonnet-4-5",
+    "input_tokens": 3200,
+    "cached_input_tokens": 0,
+    "output_tokens": 40,
+    "reasoning": 0
+  },
+  "error": "draft.md not found in workspace"
+}

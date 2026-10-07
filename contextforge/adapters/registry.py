@@ -8,7 +8,9 @@ from contextforge.adapters.claude_desktop import ClaudeDesktopAdapter
 from contextforge.adapters.codex import CodexAdapter
 from contextforge.adapters.antigravity import AntigravityAdapter
 from contextforge.adapters.cursor import CursorAdapter
+from contextforge.adapters.datatzis import DatatzisAdapter
 from contextforge.adapters.gemini import GeminiAdapter
+from contextforge.adapters.pi import PiAdapter
 
 ADAPTERS: dict[str, type[ToolAdapter]] = {
     "claude_code": ClaudeCodeAdapter,
@@ -18,6 +20,8 @@ ADAPTERS: dict[str, type[ToolAdapter]] = {
     "gemini": GeminiAdapter,
     "antigravity": AntigravityAdapter,
     "cursor": CursorAdapter,
+    "pi": PiAdapter,
+    "datatzis": DatatzisAdapter,
 }
 
 

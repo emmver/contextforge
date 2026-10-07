@@ -1,0 +1,9 @@
+{"type":"session","version":3,"id":"c9d8e7f6-0000-4000-8000-000000000003","timestamp":"2026-01-15T11:20:00.000Z","cwd":"/home/dev/project-a"}
+{"type":"message","id":"h1","parentId":null,"timestamp":"2026-01-15T11:20:01.000Z","message":{"role":"system","content":"","sections":{"preamble":"You are an expert coding assistant."}}}
+{"type":"message","id":"u1","parentId":"h1","timestamp":"2026-01-15T11:20:02.000Z","message":{"role":"user","content":[{"type":"text","text":"Run the test suite."}],"timestamp":1768478402000}}
+{"type":"message","id":"a1","parentId":"u1","timestamp":"2026-01-15T11:20:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Running it now."},{"type":"toolCall","id":"tcA","name":"bash","arguments":{"command":"uv run pytest"}}],"usage":{"input":900,"output":12,"totalTokens":912,"cost":{"total":0.0007,"details":{}}},"stopReason":"toolUse","timestamp":1768478403000}}
+{"type":"message","id":"mid","paren
+not json at all
+{"type":"message","id":"u2","parentId":"a1","timestamp":"2026-01-15T11:20:06.000Z","message":{"role":"user","content":[{"type":"text","text":"Ignore the failures and fix imports only."}],"timestamp":1768478406000}}
+{"type":"message","id":"tr1","parentId":"u2","timestamp":"2026-01-15T11:20:07.000Z","message":{"role":"toolResult","content":[{"type":"text","text":"2 failed, 100 passed"}],"toolCallId":"tcA","toolName":"bash","isError":false,"timestamp":1768478407000}}
+{"type":"message","id":"a2","parentId":"tr1","timestamp":"2026-01-15T11:20:08.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Fixing imports only, as requested."}],"usage":{"input":1000,"output":9,"totalTokens":1009,"cost":{"total":0.0008,"details":{}}},"stopReason":"endTurn","timestamp":1768478408000}}

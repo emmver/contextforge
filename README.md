@@ -143,6 +143,20 @@ The method is chosen automatically based on token count and whether a target ses
 | Antigravity | `~/.gemini/antigravity-cli/history.jsonl` | `-i` / `--conversation` |
 | altimate-code | `~/.local/share/altimate-code/opencode.db` | `run -s` / `import` |
 | Cursor | `~/.config/Cursor/User/globalStorage/state.vscdb` | `cursor-agent -p` / `--resume` |
+| Pi agent | `~/.pi/agent/sessions/` JSONL | `--system-prompt` / `--session` + `--append-system-prompt` |
+| datatzis harness | `<repo>/.datatzis/` JSON (per-repo) | launch/resume only: `datatzis chat --resume` (delivered interactively) |
+
+Notes:
+
+- **Sub-agent tracking** — sessions spawned by sub-agents are tracked and cross-linked: Pi
+  (`pi-subagents`) child transcripts get `subagent` + `parent:<session-id>` tags naming the
+  parent session; the datatzis harness's orchestrator tasks (one per user prompt) get
+  `subagent` + `workspace:<session-id>` tags.
+- **datatzis discovery** — per-repo storage: ContextForge scans repository roots for
+  `*/.datatzis/workspaces/` (up to two levels deep). Configure roots via the
+  `DATATZIS_SEARCH_ROOTS` environment variable (colon-separated; default `~/Documents/Github`).
+  The datatzis CLI is interactive-only, so inject commands open or resume the session rather
+  than passing context as a flag.
 
 ## Session Summaries
 

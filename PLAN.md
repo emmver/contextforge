@@ -89,6 +89,8 @@ Agents and contributors: update this file as you work.
 - [ ] `open-claw` adapter (if/when CLI interface is documented)
 - [x] Antigravity adapter (`adapters/antigravity.py`)
 - [x] Cursor adapter (`adapters/cursor.py`)
+- [x] Pi agent adapter (`adapters/pi.py`) — including sub-agent session tracking (`pi-subagents` runs nested under the parent session stem)
+- [x] datatzis harness adapter (`adapters/datatzis.py`) — per-repo `.datatzis/` workspaces + orchestrator-task sub-agent tracking (consultation/dossier runs intentionally out of scope)
 - [ ] Session search: `cf ls --search <query>`
 - [ ] Session archiving: `cf archive <id>`
 

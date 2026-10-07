@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"c3d4e5f6-0000-4000-8000-000000000004","timestamp":"2026-01-15T11:15:00.000Z","cwd":"/home/dev/project-a"}
+{"type":"session_info","id":"e1234567","parentId":"b3f3e321","timestamp":"2026-01-15T11:15:01.000Z","name":"subagent-worker-e5f61122-3333-4444-5555-666677778888-2"}
+{"type":"message","id":"d1","parentId":null,"timestamp":"2026-01-15T11:15:02.000Z","message":{"role":"system","content":"","sections":{"preamble":"You are a research worker agent (retry run)."}}}
+{"type":"message","id":"d2","parentId":"d1","timestamp":"2026-01-15T11:15:03.000Z","message":{"role":"user","content":[{"type":"text","text":"Find all uses of login in the repo."}],"timestamp":1768478103000}}
+{"type":"message","id":"d3","parentId":"d2","timestamp":"2026-01-15T11:15:04.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Login is referenced in the auth module only."}],"usage":{"input":480,"output":8,"totalTokens":488,"cost":{"total":0.0004,"details":{}}},"stopReason":"endTurn","timestamp":1768478104000}}
