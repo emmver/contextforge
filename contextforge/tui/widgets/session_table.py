@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
+from rich.markup import escape
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.events import Key
@@ -21,6 +22,8 @@ TOOL_ICON = {
     "gemini":         "✦",   # Google Gemini — four-pointed star
     "antigravity":    "◉",   # Antigravity — circle
     "cursor":         "▲",   # Cursor — triangle
+    "pi":             "∏",   # Pi — product symbol
+    "datatzis":       "✎",   # writing harness — pencil
 }
 
 TOOL_MARKUP = {
@@ -31,6 +34,8 @@ TOOL_MARKUP = {
     "gemini":         "[blue]✦ Gemini[/blue]",
     "antigravity":    "[white]◉ Agy[/white]",
     "cursor":         "[bright_white]▲ Cursor[/bright_white]",
+    "pi":             "[bright_cyan]∏ Pi[/bright_cyan]",
+    "datatzis":       "[orange1]✎ Datz[/orange1]",
 }
 
 TOOL_DISPLAY = {
@@ -41,6 +46,8 @@ TOOL_DISPLAY = {
     "gemini":         "✦ Gemini",
     "antigravity":    "◉ Agy",
     "cursor":         "▲ Cursor",
+    "pi":             "∏ Pi",
+    "datatzis":       "✎ Datz",
 }
 
 _FTOOL_MAP = {
@@ -51,6 +58,8 @@ _FTOOL_MAP = {
     "ftool-alt":   "altimate_code",
     "ftool-agy":   "antigravity",
     "ftool-cur":   "cursor",
+    "ftool-pi":    "pi",
+    "ftool-datz":  "datatzis",
 }
 
 
@@ -169,6 +178,8 @@ class SessionTable(Widget):
                 yield Button("⚡ Alt",   id="ftool-alt",    classes="filter-tool-btn")
                 yield Button("◉ Agy",   id="ftool-agy",    classes="filter-tool-btn")
                 yield Button("▲ Cursor", id="ftool-cur",    classes="filter-tool-btn")
+                yield Button("∏ Pi",    id="ftool-pi",     classes="filter-tool-btn")
+                yield Button("✎ Datz",  id="ftool-datz",   classes="filter-tool-btn")
             yield DataTable(cursor_type="row", zebra_stripes=True, id="sessions-datatable")
 
     def on_mount(self) -> None:
@@ -227,8 +238,11 @@ class SessionTable(Widget):
             tool = row.get("tool", "")
             tool_label = TOOL_MARKUP.get(tool, f"⚪ {tool}")
 
-            from contextforge.utils.display import _clean_title
+            from contextforge.utils.display import _clean_title, display_safe, is_subagent
             title = _clean_title(row.get("title") or "", max_len=40) or "(no title)"
+            if is_subagent(row):
+                title = f"↳ {title}"
+            title = display_safe(title)
 
             updated_ms = row.get("updated_at") or 0
             try:

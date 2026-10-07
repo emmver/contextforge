@@ -7,8 +7,11 @@ from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
+from rich.markup import escape
 from textual.widget import Widget
 from textual.widgets import Markdown, Static, TextArea
+
+from contextforge.utils.display import _clean_title, display_safe
 
 TOOL_COLORS = {
     "claude_code":    "cyan",
@@ -18,6 +21,8 @@ TOOL_COLORS = {
     "gemini":         "blue",
     "antigravity":    "white",
     "cursor":         "bright_white",
+    "pi":             "bright_cyan",
+    "datatzis":       "orange1",
 }
 TOOL_LABELS = {
     "claude_code":    "◆ Claude Code",
@@ -27,6 +32,8 @@ TOOL_LABELS = {
     "gemini":         "✦ Gemini",
     "antigravity":    "◉ Antigravity",
     "cursor":         "▲ Cursor",
+    "pi":             "∏ Pi",
+    "datatzis":       "✎ Datatzis",
 }
 
 
@@ -130,6 +137,7 @@ class SessionDetail(Widget):
             yield Static("", id="detail-created")
             yield Static("", id="detail-updated")
             yield Static("", id="detail-status")
+            yield Static("", id="detail-parent")
             yield Static("", id="detail-tags")
             yield TextArea("", id="detail-id", read_only=True)
         yield Static("✎ Summary", id="detail-summary-label")
@@ -164,9 +172,15 @@ class SessionDetail(Widget):
         status = row.get("status") or "?"
         tags_raw = row.get("tags") or "[]"
         try:
-            tags = ", ".join(json.loads(tags_raw)) or "—"
+            tags_list = [str(t) for t in json.loads(tags_raw)]
         except Exception:
-            tags = "—"
+            tags_list = []
+        tags = ", ".join(tags_list) or "—"
+
+        parent = next(
+            (t.split(":", 1)[1] for t in tags_list if t.startswith(("parent:", "workspace:"))),
+            None,
+        )
 
         created_str = _fmt_ts(row.get("created_at"))
         updated_str = _fmt_ts(row.get("updated_at"))
@@ -189,14 +203,21 @@ class SessionDetail(Widget):
         self.query_one("#detail-meta-block").display = True
         self.query_one("#detail-summary-label").display = True
 
-        self.query_one("#detail-title", Static).update(f"[bold]{title}[/bold]")
+        self.query_one("#detail-title", Static).update(f"[bold]{display_safe(_clean_title(title, max_len=200))}[/bold]")
         self.query_one("#detail-tool", Static).update(_meta_line("Tool", tool_markup))
         self.query_one("#detail-cwd", TextArea).load_text("Project   " + cwd)
         self.query_one("#detail-tokens", Static).update(_meta_line("Tokens", tok_markup))
         self.query_one("#detail-created", Static).update(_meta_line("Created", f"[dim]{created_str}[/dim]"))
         self.query_one("#detail-updated", Static).update(_meta_line("Updated", f"[dim]{updated_str}[/dim]"))
-        self.query_one("#detail-status", Static).update(_meta_line("Status", f"[dim]{status}[/dim]"))
-        self.query_one("#detail-tags", Static).update(_meta_line("Tags", f"[dim]{tags}[/dim]"))
+        self.query_one("#detail-status", Static).update(_meta_line("Status", f"[dim]{display_safe(status)}[/dim]"))
+        self.query_one("#detail-tags", Static).update(_meta_line("Tags", f"[dim]{display_safe(tags)}[/dim]"))
+        parent_widget = self.query_one("#detail-parent", Static)
+        if parent:
+            parent_widget.update(_meta_line("Parent", f"[dim]↳ {display_safe(parent)}[/dim]"))
+            parent_widget.display = True
+        else:
+            parent_widget.update("")
+            parent_widget.display = False
         self.query_one("#detail-id", TextArea).load_text("ID         " + session_id)
 
         md = self.query_one("#detail-summary-md", Markdown)
@@ -209,4 +230,5 @@ class SessionDetail(Widget):
         self.query_one("#detail-meta-block").display = False
         self.query_one("#detail-summary-label").display = False
         self.query_one("#detail-title", Static).update("")
+        self.query_one("#detail-parent").display = False
         self.app.call_later(self.query_one("#detail-summary-md", Markdown).update, "")

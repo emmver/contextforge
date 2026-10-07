@@ -8,6 +8,7 @@ from typing import Annotated, Optional
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 
 from contextforge.core import db as db_module
@@ -16,7 +17,13 @@ from contextforge.core.injector import build_inject_command, execute_transfer
 from contextforge.core.scanner import scan
 from contextforge.core.summarizer import batch_summarize, summarize_session
 from contextforge.models.config import ForgeConfig
-from contextforge.utils.display import console, err_console, sessions_table
+from contextforge.utils.display import (
+    console,
+    display_safe,
+    err_console,
+    row_tags as display_row_tags,
+    sessions_table,
+)
 
 def _version_callback(value: bool) -> None:
     if value:
@@ -167,12 +174,13 @@ def show(
 
     summary = row.get("summary") or "[dim]No summary yet — run [bold]cf summarize[/bold][/dim]"
     panel = Panel(
-        f"[bold]{row.get('title') or '(no title)'}[/bold]\n\n"
-        f"Tool:     {row.get('tool')}\n"
-        f"CWD:      {row.get('cwd') or '?'}\n"
-        f"Tokens:   {row.get('token_count') or '?'}\n"
-        f"Status:   {row.get('status')}\n\n"
-        f"[bold]Summary:[/bold]\n{summary}",
+        f"[bold]{display_safe(row.get('title') or '(no title)')}[/bold]\n\n"
+        f"Tool:     {display_safe(row.get('tool'))}\n"
+        f"CWD:      {display_safe(row.get('cwd') or '?')}\n"
+        f"Tokens:   {display_safe(row.get('token_count'))}\n"
+        f"Status:   {display_safe(row.get('status'))}\n\n"
+        f"[bold]Tags:[/bold]     {display_safe(', '.join(display_row_tags(row)) or '—')}\n\n"
+        f"[bold]Summary:[/bold]\n{display_safe(summary) if row.get('summary') else summary}",
         title=f"Session {session_id[:16]}",
     )
     console.print(panel)

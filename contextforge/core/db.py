@@ -84,6 +84,10 @@ def upsert_session(db: sqlite_utils.Database, session: Session) -> None:
         if existing_updated >= new_updated:
             return
 
+    # Cap the title: some adapters derive it from the first message, which can
+    # be arbitrarily large (an entire system prompt). Titles are display text.
+    title = session.title[:300] if session.title else None
+
     first_msg = ""
     if session.messages:
         for m in session.messages:
@@ -95,7 +99,7 @@ def upsert_session(db: sqlite_utils.Database, session: Session) -> None:
         {
             "id": session.id,
             "tool": session.tool,
-            "title": session.title,
+            "title": title,
             "cwd": session.cwd,
             "created_at": int(session.created_at.timestamp() * 1000),
             "updated_at": int(session.updated_at.timestamp() * 1000),

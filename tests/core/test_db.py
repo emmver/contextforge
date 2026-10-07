@@ -54,6 +54,20 @@ def test_get_sessions_filter_by_tool():
         assert cc[0]["id"] == "s1"
 
 
+def test_title_capped_at_ingest():
+    """Adapters may derive the title from an arbitrarily large first message
+    (a whole system prompt); storage caps it so display surfaces stay safe."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db = get_db(Path(tmpdir) / "test.db")
+        session = make_session("big-title")
+        session = session.model_copy(update={"title": "Η" * 10_000})
+        upsert_session(db, session)
+
+        row = get_session(db, "big-title")
+        assert len(row["title"]) == 300
+        assert row["title"].startswith("ΗΗΗ")
+
+
 def test_schema_idempotent():
     with tempfile.TemporaryDirectory() as tmpdir:
         path = Path(tmpdir) / "test.db"
