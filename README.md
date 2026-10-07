@@ -151,7 +151,10 @@ Notes:
 - **Sub-agent tracking** — sessions spawned by sub-agents are tracked and cross-linked: Pi
   (`pi-subagents`) child transcripts get `subagent` + `parent:<session-id>` tags naming the
   parent session; the datatzis harness's orchestrator tasks (one per user prompt) get
-  `subagent` + `workspace:<session-id>` tags.
+  `subagent` + `workspace:<session-id>` tags. Surfaces are parent-first: `cf ls` shows only
+  main sessions unless `--all` is passed, and in the TUI dashboard sub-agents stay hidden
+  until you select their parent row, which nests them underneath as an indented `↳` list —
+  selecting the parent again collapses them.
 - **datatzis discovery** — per-repo storage: ContextForge scans repository roots for
   `*/.datatzis/workspaces/` (up to two levels deep). Configure roots via the
   `DATATZIS_SEARCH_ROOTS` environment variable (colon-separated; default `~/Documents/Github`).

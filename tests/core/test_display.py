@@ -63,6 +63,29 @@ def test_sessions_table_escapes_hostile_titles() -> None:
     assert "Says ❰bold❱hi❰/bold❱ with ❰/weird/brackets." in exported
 
 
+def test_sessions_table_hides_subagents_by_default() -> None:
+    """Parent-first: `cf ls` shows main sessions unless --all is given."""
+    now = "2026-01-15T12:31:00+00:00"
+    rows = [
+        {"id": "b" * 32, "tool": "pi", "title": "Parent chat", "cwd": "/proj",
+         "token_count": 9, "updated_at": now, "tags": "[]", "summary": ""},
+        {"id": "a" * 32, "tool": "pi", "title": "Child run", "cwd": "/proj",
+         "token_count": 5, "updated_at": now,
+         "tags": json.dumps(["subagent", "parent:" + "b" * 32]), "summary": ""},
+    ]
+    console = Console(record=True, width=200)
+    console.print(sessions_table(rows))
+    exported = console.export_text()
+    assert "Parent chat" in exported
+    assert "Child run" not in exported
+
+    console = Console(record=True, width=200)
+    console.print(sessions_table(rows, include_subagents=True))
+    exported = console.export_text()
+    assert "↳ Child run" in exported
+    assert "Parent chat" in exported
+
+
 def test_sessions_table_marks_subagent_rows() -> None:
     rows = [
         {"id": "a" * 32, "tool": "pi", "title": "Child run", "cwd": "/proj",
@@ -72,7 +95,7 @@ def test_sessions_table_marks_subagent_rows() -> None:
          "token_count": 9, "updated_at": "2026-01-15T12:30:00+00:00",
          "tags": "[]", "summary": ""},
     ]
-    table = sessions_table(rows)
+    table = sessions_table(rows, include_subagents=True)
     console = Console(record=True, width=200)
     console.print(table)
     exported = console.export_text()

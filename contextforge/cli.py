@@ -21,6 +21,7 @@ from contextforge.utils.display import (
     console,
     display_safe,
     err_console,
+    is_subagent as display_is_subagent,
     row_tags as display_row_tags,
     sessions_table,
 )
@@ -130,9 +131,10 @@ def scan_cmd(
 def list_sessions(
     tool: Annotated[Optional[str], typer.Option("--tool", "-t")] = None,
     limit: Annotated[int, typer.Option("--limit", "-n")] = 50,
+    all_sessions: Annotated[bool, typer.Option("--all", "-a", help="Include sub-agent (child) sessions")] = False,
     fmt: Annotated[str, typer.Option("--format", "-f")] = "table",
 ):
-    """List sessions."""
+    """List sessions (parent sessions only, unless --all)."""
     cfg = _get_config()
     database = _get_db(cfg)
     rows = db_module.get_sessions(database, tool=tool, limit=limit)
@@ -145,9 +147,16 @@ def list_sessions(
         console.print("[dim]No sessions found. Run [bold]cf scan[/bold] first.[/dim]")
         return
 
-    table = sessions_table(rows)
+    hidden = sum(1 for r in rows if display_is_subagent(r))
+    table = sessions_table(rows, include_subagents=all_sessions)
     console.print(table)
-    console.print(f"[dim]{len(rows)} sessions[/dim]")
+    if all_sessions or not hidden:
+        console.print(f"[dim]{len(rows)} sessions[/dim]")
+    else:
+        console.print(
+            f"[dim]{len(rows) - hidden} sessions "
+            f"(+{hidden} sub-agent hidden — use --all to show)[/dim]"
+        )
 
 
 # ---------------------------------------------------------------------------

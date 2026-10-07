@@ -163,6 +163,8 @@ class SessionTable(Widget):
         self._filter_text: str = ""
         self._filter_tool: str | None = None
         self._filter_visible: bool = False
+        self._expanded_parents: set[str] = set()
+        self._preserve_cursor_id: str | None = None
 
     # ── Compose ───────────────────────────────────────────────────────────────
 
@@ -183,7 +185,7 @@ class SessionTable(Widget):
             yield DataTable(cursor_type="row", zebra_stripes=True, id="sessions-datatable")
 
     def on_mount(self) -> None:
-        self.border_title = "◈ Sessions"
+        self.border_title = "◈ Sessions — select a parent to expand sub-agents"
         table = self.query_one(DataTable)
         table.add_columns("Tool", "Title", "Updated", "Tokens", "ID")
         self.reload()
@@ -223,8 +225,82 @@ class SessionTable(Widget):
         db = get_db(db_path)
         rows = get_sessions(db, tool=tool_filter, limit=500)
         self._rows = rows
-        self._display_rows = rows
-        self._render_rows(rows)
+        self._rerender()
+
+    # ── Hierarchy: parent sessions first, sub-agents under their parent ───────
+
+    @staticmethod
+    def _children_by_parent(rows: list[dict]) -> dict[str, list[dict]]:
+        from contextforge.utils.display import parent_id_of
+
+        children: dict[str, list[dict]] = {}
+        for row in rows:
+            parent = parent_id_of(row)
+            if parent:
+                children.setdefault(parent, []).append(row)
+        return children
+
+    @staticmethod
+    def _mains(rows: list[dict]) -> list[dict]:
+        from contextforge.utils.display import is_subagent
+        return [row for row in rows if not is_subagent(row)]
+
+    def _build_display_rows(self, mains: list[dict]) -> list[dict]:
+        """Main sessions in order, with children of expanded parents nested."""
+        children = self._children_by_parent(self._rows)
+        display: list[dict] = []
+        for main in mains:
+            display.append(main)
+            if main["id"] in self._expanded_parents:
+                for child in children.get(main["id"], []):
+                    row = dict(child)
+                    row["_is_child"] = True
+                    display.append(row)
+        return display
+
+    def _rerender(self) -> None:
+        """Recompute the display list (filter + expansion) and render."""
+        self._apply_filter_and_render()
+
+    def _apply_filter_and_render(self) -> None:
+        text = self._filter_text.lower()
+        tool = self._filter_tool
+
+        def _row_matches(row: dict) -> bool:
+            if tool and row.get("tool") != tool:
+                return False
+            if not text:
+                return True
+            return (
+                text in (row.get("title") or "").lower()
+                or text in (row.get("cwd") or "").lower()
+            )
+
+        children = self._children_by_parent(self._rows)
+
+        filtered: list[dict] = []
+        for main in self._mains(self._rows):
+            if _row_matches(main):
+                filtered.append(main)
+                continue
+            # A child's match keeps its parent (and its siblings) visible
+            for child in children.get(main["id"], []):
+                if _row_matches(child):
+                    filtered.append(main)
+                    break
+        self._render_rows(self._build_display_rows(filtered))
+        self.post_message(self.FilterChanged(self._filter_text, tool, len(self._display_rows)))
+
+    def toggle_expansion(self, parent_id: str | None) -> None:
+        """Expand (or collapse) a parent session's sub-agent rows in place."""
+        if not parent_id:
+            return
+        if parent_id in self._expanded_parents:
+            self._expanded_parents.discard(parent_id)
+        else:
+            self._expanded_parents.add(parent_id)
+        self._preserve_cursor_id = parent_id
+        self._rerender()
 
     # ── Internal rendering ────────────────────────────────────────────────────
 
@@ -232,16 +308,22 @@ class SessionTable(Widget):
         """Populate the DataTable from a list of session dicts."""
         self._display_rows = rows
         table = self.query_one(DataTable)
+        restore_id = self._preserve_cursor_id
+        restore_row_index: int | None = None
         table.clear()
 
-        for row in rows:
+        from contextforge.utils.display import _clean_title, display_safe, is_subagent
+
+        for idx, row in enumerate(rows):
             tool = row.get("tool", "")
+            is_child = bool(row.get("_is_child"))
             tool_label = TOOL_MARKUP.get(tool, f"⚪ {tool}")
 
-            from contextforge.utils.display import _clean_title, display_safe, is_subagent
             title = _clean_title(row.get("title") or "", max_len=40) or "(no title)"
             if is_subagent(row):
                 title = f"↳ {title}"
+                if is_child:
+                    title = f"  {title}"
             title = display_safe(title)
 
             updated_ms = row.get("updated_at") or 0
@@ -255,23 +337,17 @@ class SessionTable(Widget):
             session_id = str(row.get("id", ""))[:12]
 
             table.add_row(tool_label, title, updated, tokens, session_id)
+            if restore_id is not None and str(row.get("id", "")) == restore_id:
+                restore_row_index = idx
+
+        if restore_row_index is not None:
+            table.move_cursor(row=restore_row_index)
+        self._preserve_cursor_id = None
 
     def _apply_filter(self) -> None:
-        """Filter self._rows in memory and re-render."""
-        text = self._filter_text.lower()
-        tool = self._filter_tool
-
-        filtered = [
-            row for row in self._rows
-            if (not tool or row.get("tool") == tool)
-            and (
-                not text
-                or text in (row.get("title") or "").lower()
-                or text in (row.get("cwd") or "").lower()
-            )
-        ]
-        self._render_rows(filtered)
-        self.post_message(self.FilterChanged(self._filter_text, tool, len(filtered)))
+        """Filter in memory: parent rows match their own fields or any of
+        their children's; then re-render with the current expansion state."""
+        self._apply_filter_and_render()
 
     # ── Event handlers ────────────────────────────────────────────────────────
 
@@ -297,6 +373,17 @@ class SessionTable(Widget):
             else:
                 btn.remove_class("active")
         self._apply_filter()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter/click on a parent row expands its sub-agent rows beneath it."""
+        idx = event.cursor_row
+        display = self._display_rows
+        if 0 <= idx < len(display):
+            row = display[idx]
+            from contextforge.utils.display import is_subagent
+            if not is_subagent(row):
+                self.toggle_expansion(str(row["id"]))
+                event.stop()
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         idx = event.cursor_row

@@ -94,7 +94,17 @@ def _project_name(cwd: str) -> str:
     return parts[-1]
 
 
-def sessions_table(rows: list[dict]) -> Table:
+def sessions_table(
+    rows: list[dict],
+    include_subagents: bool = False,
+) -> Table:
+    """Build a table of sessions.
+
+    Sub-agent (child) sessions are hidden by default — surfaces show the
+    parent-first view and may opt in with ``include_subagents=True``; rows
+    then carry a ``↳`` prefix."""
+    if not include_subagents:
+        rows = [r for r in rows if not is_subagent(r)]
     table = Table(
         show_header=True,
         header_style="bold",
